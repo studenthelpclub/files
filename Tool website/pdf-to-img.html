@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF to Image - Student Help Club</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3110600191216941"
+     crossorigin="anonymous"></script>
+</head>
+<body>
+
+    <header class="header">
+        <img src="shc-logo.jpg" alt="SHC Logo" class="logo" onerror="this.src='https://via.placeholder.com/60?text=Logo'">
+        <h1>STUDENT HELP CLUB</h1>
+    </header>
+
+    <nav class="main-nav">
+        <ul>
+            <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
+            <li><a href="pdf-to-img.html" class="active"><i class="fas fa-file-image"></i> PDF to Image</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <h2>PDF to Image Converter</h2>
+        <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Convert every PDF page into a high-quality JPG image</p>
+        
+        <div class="upload-container" id="dropZone" style="border-color: #ffc107; background: #fffcf4;">
+            <i class="fas fa-file-image" style="font-size: 50px; color: #ffc107;"></i>
+            <p id="statusText" style="margin-top: 15px; font-weight: 500;">Select or Drag PDF to Convert</p>
+            <input type="file" id="pdfInput" accept="application/pdf" hidden>
+            <button type="button" class="select-btn" style="margin-top: 10px; background: #ffc107; color: #333; font-weight: bold;">Select PDF File</button>
+        </div>
+
+        <div id="convertSettings" style="display: none; margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
+            <p id="pdfNameDisplay" style="font-size: 14px; font-weight: bold; margin-bottom: 15px; color: #333; background: #fdf6e3; padding: 10px; border-radius: 8px;"></p>
+            <button id="convertBtn" class="main-btn" style="background: #ffc107; color: #333;">
+                Convert All Pages to JPG
+            </button>
+        </div>
+
+        <div id="resultArea" style="display: none; margin-top: 30px;">
+            <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 25px;">
+            <h3 style="color: #333;"><i class="fas fa-images"></i> Converted Images</h3>
+            <p style="font-size: 12px; color: #666; margin-bottom: 15px;">Review each page and download as needed.</p>
+            <div id="imageGallery" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px; margin-top: 10px;"></div>
+        </div>
+
+        <div class="how-to-use">
+            <h3 style="color: #333; border-bottom: 2px solid #ffc107; display: inline-block; padding-bottom: 5px;">How to Convert?</h3>
+            <ul style="margin-top: 15px; color: #555; line-height: 1.8; font-size: 14px; text-align: left; padding-left: 20px;">
+                <li>Upload the PDF file you wish to turn into images.</li>
+                <li>Click <b>"Convert All Pages to JPG"</b>.</li>
+                <li>Wait a few seconds for the conversion process.</li>
+                <li>Click the <b>Download</b> button under each page image.</li>
+            </ul>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>Follow Us For Updates:</p>
+        <div class="social-links">
+            <a href="https://www.youtube.com/@vishalhelpclub?sub_confirmation=1" target="_blank" class="youtube"><i class="fab fa-youtube"></i></a>
+            <a href="https://t.me/studenthelpclub" target="_blank" class="telegram"><i class="fab fa-telegram-plane"></i></a>
+            <a href="https://whatsapp.com/channel/0029VbCJ2xI7IUYa1zMB6n1f" target="_blank" class="whatsapp"><i class="fab fa-whatsapp"></i></a>
+        </div>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="pdf-to-img.js"></script>
+</body>
+</html>

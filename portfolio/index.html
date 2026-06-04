@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vishal Kumar | Digital Portfolio</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* --- CORE THEME VARIABLES --- */
+        :root {
+            --bg-color: #0d1117; /* Deep dark background */
+            --text-primary: #c9d1d9; /* Off-white text for readability */
+            --text-accent: #58a6ff; /* Modern tech blue */
+            --card-bg: rgba(22, 27, 34, 0.85); /* Glassmorphism card base */
+            --btn-bg: #1f2937; /* Default button background */
+            --btn-hover: #374151; /* Lighter button hover */
+            --btn-border: rgba(255, 255, 255, 0.08); /* Subtle button border */
+            --section-title-color: #8b949e; /* Muted text for section headings */
+        }
+
+        /* --- GLOBAL RESETS --- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        /* --- BACKGROUND & BODY SETUP --- */
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 40px 20px;
+            
+            /* Animated Gradient Background */
+            background: linear-gradient(-45deg, #050b14, #0f172a, #1a1638, #0f172a);
+            background-size: 400% 400%;
+            animation: gradientBG 20s ease infinite;
+            overflow-x: hidden;
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        @keyframes fadeInUpSmooth {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes floatAvatar {
+            0% { transform: translateY(0px); box-shadow: 0 0 20px rgba(88, 166, 255, 0.3); }
+            50% { transform: translateY(-8px); box-shadow: 0 15px 30px rgba(88, 166, 255, 0.6); }
+            100% { transform: translateY(0px); box-shadow: 0 0 20px rgba(88, 166, 255, 0.3); }
+        }
+
+        /* --- MAIN CONTAINER (GLASSMORPHISM) --- */
+        .portfolio-container {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 45px 30px;
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8);
+            
+            /* Container entry animation */
+            opacity: 0;
+            animation: fadeInUpSmooth 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+        }
+
+        /* --- PROFILE AVATAR SECTION --- */
+        .profile-img {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--text-accent);
+            margin-bottom: 20px;
+            background-color: #1e293b; 
+            
+            /* Avatar floating animation */
+            animation: floatAvatar 5s ease-in-out infinite;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .profile-img:hover {
+            transform: scale(1.08);
+            border-color: #79c0ff;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: 0.5px;
+        }
+
+        .bio {
+            font-size: 0.95rem;
+            color: #8b949e;
+            margin-bottom: 35px;
+            line-height: 1.6;
+            padding: 0 10px;
+        }
+
+        /* --- SECTION HEADERS --- */
+        .link-section {
+            margin-bottom: 35px;
+            text-align: left;
+            opacity: 0;
+            animation: fadeInUpSmooth 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+        }
+
+        .section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--section-title-color);
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+            margin-left: 8px;
+            font-weight: 700;
+        }
+
+        .links-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* --- BASE LINK BUTTON STYLING (For Socials) --- */
+        .link-btn {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            padding: 16px 20px;
+            border-radius: 14px;
+            background: var(--btn-bg);
+            border: 1px solid var(--btn-border);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            color: var(--text-primary);
+            
+            /* Entry animation for buttons */
+            opacity: 0;
+            transform: translateY(15px);
+            animation: fadeInUpSmooth 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+
+        .link-btn:hover {
+            background: var(--btn-hover);
+            transform: translateY(-4px);
+            border-color: rgba(88, 166, 255, 0.4);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Button internal elements */
+        .btn-icon {
+            font-size: 1.2rem;
+            width: 32px;
+            margin-right: 15px;
+            text-align: center;
+        }
+
+        .btn-text {
+            font-size: 0.95rem;
+            font-weight: 500;
+            flex-grow: 1;
+        }
+
+        .btn-arrow {
+            color: rgba(255, 255, 255, 0.2);
+            font-size: 0.8rem;
+            transition: transform 0.3s ease, color 0.3s ease;
+        }
+
+        .link-btn:hover .btn-arrow {
+            transform: translateX(4px);
+            color: var(--text-accent);
+        }
+
+        /* --- PRIMARY BUTTON STYLING (For Websites & YouTube) --- */
+        .primary-btn {
+            background: #2563eb; /* Bright Blue */
+            border-color: #3b82f6;
+            color: #ffffff; /* Explicit white text */
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+        }
+
+        .primary-btn .btn-text,
+        .primary-btn .btn-icon {
+            color: #ffffff;
+        }
+
+        .primary-btn .btn-arrow {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .primary-btn:hover {
+            background: #1d4ed8;
+            border-color: #60a5fa;
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.5);
+        }
+
+        .primary-btn:hover .btn-arrow {
+            color: #ffffff;
+        }
+
+        /* --- CONTACT SECTION SPECIFIC --- */
+        .contact-divider {
+            margin: 25px 0 15px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            position: relative;
+            opacity: 0;
+            animation: fadeInUpSmooth 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+            animation-delay: 0.9s;
+        }
+        
+        .contact-divider span {
+            background: var(--card-bg); /* Matches container to look transparent */
+            padding: 0 15px;
+            color: var(--section-title-color);
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .contact-btn {
+            background: transparent;
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+            justify-content: center; /* Center the email content */
+            animation-delay: 1.0s !important;
+        }
+
+        .contact-btn .btn-text {
+            flex-grow: 0; /* Prevents text from stretching in contact btn */
+            margin-right: 15px;
+        }
+
+        .contact-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        /* --- FOOTER --- */
+        .footer-text {
+            margin-top: 30px;
+            font-size: 0.8rem;
+            color: #64748b;
+            opacity: 0;
+            animation: fadeInUpSmooth 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+            animation-delay: 1.2s;
+        }
+
+        /* --- STAGGERED ANIMATION DELAYS (To make them load one after another) --- */
+        #websites-section { animation-delay: 0.2s; }
+        #websites-section .link-btn:nth-child(1) { animation-delay: 0.3s; }
+        #websites-section .link-btn:nth-child(2) { animation-delay: 0.4s; }
+        #websites-section .link-btn:nth-child(3) { animation-delay: 0.5s; }
+        #websites-section .link-btn:nth-child(4) { animation-delay: 0.6s; }
+
+        #social-section { animation-delay: 0.5s; }
+        #social-section .link-btn:nth-child(1) { animation-delay: 0.6s; }
+        #social-section .link-btn:nth-child(2) { animation-delay: 0.65s; }
+        #social-section .link-btn:nth-child(3) { animation-delay: 0.7s; }
+        #social-section .link-btn:nth-child(4) { animation-delay: 0.75s; }
+        #social-section .link-btn:nth-child(5) { animation-delay: 0.8s; }
+
+    </style>
+</head>
+<body>
+
+    <div class="portfolio-container">
+        
+        <img src="vishal.jpg" alt="Vishal Kumar" class="profile-img">
+        <h1>Vishal Kumar</h1>
+        <p class="bio">Founder & Owner of 3 Digital Platforms | YouTube Content Creator | Education Enthusiast 🚀</p>
+
+        <div class="link-section" id="websites-section">
+            <h2 class="section-title">Websites & Channel</h2>
+            <div class="links-container">
+                
+                <a href="https://studenthelpclub.in" target="_blank" class="link-btn primary-btn">
+                    <i class="fa-solid fa-globe btn-icon"></i>
+                    <span class="btn-text">Student Help Club (Main Site)</span>
+                    <i class="fa-solid fa-chevron-right btn-arrow"></i>
+                </a>
+
+                <a href="https://tools.studenthelpclub.in" target="_blank" class="link-btn primary-btn">
+                    <i class="fa-solid fa-tools btn-icon"></i>
+                    <span class="btn-text">Exam Tools (Image & PDF Resizer)</span>
+                    <i class="fa-solid fa-chevron-right btn-arrow"></i>
+                </a>
+
+                <a href="https://jobs.studenthelpclub.in" target="_blank" class="link-btn primary-btn">
+                    <i class="fa-solid fa-briefcase btn-icon"></i>
+                    <span class="btn-text">Latest Govt Job Updates</span>
+                    <i class="fa-solid fa-chevron-right btn-arrow"></i>
+                </a>
+
+                <a href="https://www.youtube.com/@vishalhelpclub?sub_confirmation=1" target="_blank" class="link-btn primary-btn">
+                    <i class="fa-brands fa-youtube btn-icon"></i>
+                    <span class="btn-text">Subscribe on YouTube</span>
+                    <i class="fa-solid fa-chevron-right btn-arrow"></i>
+                </a>
+            </div>
+        </div>
+
+        <div class="link-section" id="social-section">
+            <h2 class="section-title">Social Media Groups</h2>
+            <div class="links-container">
+                
+                <a href="https://whatsapp.com/channel/0029VbCJ2xI7IUYa1zMB6n1f" target="_blank" class="link-btn">
+                    <i class="fa-brands fa-whatsapp btn-icon" style="color: #25D366;"></i>
+                    <span class="btn-text">WhatsApp Channel (Updates)</span>
+                    <i class="fa-solid fa-chevron-right btn-arrow"></i>
+                </a>
+
+                <a href="https://chat.whatsapp.com/Hl7Wdd7xVrFD1H4LWmcJuZ" target="_blank" class="link-btn">
+                    <i class="fa-solid fa-users btn-icon" style="color: #25D366;"></i>
+                    <span class="btn-text">WhatsApp Group (Discussion)</span>
+                    <i class="fa-solid fa-chevron-right btn-arrow"></i>
+                </a>
+
+                <a href="https://t.me/studenthelpclub" target="_blank" class="link-btn">
+                    <i class="fa-brands fa-telegram btn-icon" style="color: #0088cc;"></i>
+                    <span class="btn-text">Join Telegram Channel</span>
+                    <i class="fa-solid fa-chevron-right btn-arrow"></i>
+                </a>
+
+                <a href="https://www.facebook.com/profile.php?id=61590682197522" target="_blank" class="link-btn">
+                    <i class="fa-brands fa-facebook btn-icon" style="color: #1877F2;"></i>
+                    <span class="btn-text">Facebook Page</span>
+                    <i class="fa-solid fa-chevron-right btn-arrow"></i>
+                </a>
+
+                <a href="https://www.instagram.com/its.mr_vishal_kr" target="_blank" class="link-btn">
+                    <i class="fa-brands fa-instagram btn-icon" style="color: #e1306c;"></i>
+                    <span class="btn-text">Follow on Instagram</span>
+                    <i class="fa-solid fa-chevron-right btn-arrow"></i>
+                </a>
+            </div>
+        </div>
+
+        <div class="contact-divider">
+            <span>Contact Us</span>
+        </div>
+        <div class="links-container">
+            <a href="mailto:officialstudenthelpclub@gmail.com" class="link-btn contact-btn">
+                <i class="fa-solid fa-envelope btn-icon" style="color: #f59e0b;"></i>
+                <span class="btn-text">officialstudenthelpclub@gmail.com</span>
+                <i class="fa-solid fa-paper-plane btn-arrow"></i>
+            </a>
+        </div>
+        
+        <div class="footer-text">
+            © 2026 Vishal Kumar
+        </div>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3110600191216941" crossorigin="anonymous"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-WKEZF1XEMF"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-WKEZF1XEMF');
+    </script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marks Percentage Calculator - Student Help Club</title>
+    
+    <link rel="icon" type="image/jpg" href="shc-logo.jpg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { --primary: #28a745; --dark: #1d3557; --light: #f8f9fa; --accent: #0d6efd; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background: var(--light); color: #333; }
+
+        .header {
+            background: #fff; padding: 10px 5%; display: flex;
+            justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 1000;
+        }
+        .logo { width: 45px; height: 45px; border-radius: 50%; border: 2px solid var(--accent); }
+        .header h1 { font-size: 1.2rem; color: var(--dark); text-transform: uppercase; }
+
+        .main-nav { background: #2c3e50; padding: 10px 0; text-align: center; }
+        .main-nav a { color: #fff; text-decoration: none; padding: 10px 20px; font-size: 14px; }
+        .main-nav a:hover { color: var(--primary); }
+
+        .container { 
+            max-width: 600px; margin: 40px auto; background: #fff; 
+            padding: 30px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); 
+            text-align: center; 
+        }
+
+        .input-group { text-align: left; margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--dark); }
+        input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 10px; font-size: 16px; outline: none; }
+        input:focus { border-color: var(--accent); }
+
+        .main-btn { 
+            width: 100%; padding: 15px; background: var(--accent); color: #fff; 
+            border: none; border-radius: 10px; font-weight: bold; cursor: pointer;
+            font-size: 16px; transition: 0.3s;
+        }
+        .main-btn:hover { background: #0056b3; }
+
+        #resultArea { 
+            margin-top: 25px; padding: 20px; background: #f0f7ff; 
+            border-radius: 12px; display: none; border: 1px solid var(--accent);
+        }
+
+        .footer { background: #fff; padding: 40px 20px; text-align: center; border-top: 1px solid #eee; margin-top: 50px; }
+        .social-links a { font-size: 28px; margin: 0 15px; text-decoration: none; }
+        .yt { color: #ff0000; } .tg { color: #0088cc; } .wa { color: #25d366; }
+
+        @media (max-width: 600px) {
+            .container { margin: 20px 15px; }
+            .header h1 { font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <img src="shc-logo.jpg" alt="Logo" class="logo">
+            <h1>STUDENT HELP CLUB</h1>
+        </div>
+    </header>
+
+    <nav class="main-nav">
+        <a href="index.html"><i class="fas fa-home"></i> Home</a>
+    </nav>
+
+    <div class="container">
+        <h2><i class="fas fa-percentage" style="color: var(--primary);"></i> Marks Calculator</h2>
+        <p style="color: #666; margin-bottom: 25px;">Calculate your exam percentage easily.</p>
+
+        <div class="input-group">
+            <label>Marks Obtained:</label>
+            <input type="number" id="obtained" placeholder="Example: 450">
+        </div>
+
+        <div class="input-group">
+            <label>Total Marks:</label>
+            <input type="number" id="total" placeholder="Example: 600">
+        </div>
+
+        <button class="main-btn" onclick="calculate()">Calculate Percentage</button>
+
+        <div id="resultArea">
+            <h3 id="resText" style="color: var(--dark);"></h3>
+            <p id="gradeText" style="margin-top: 5px; font-weight: bold;"></p>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="social-links">
+            <a href="https://www.youtube.com/@vishalhelpclub" class="yt"><i class="fab fa-youtube"></i></a>
+            <a href="https://t.me/studenthelpclub" class="tg"><i class="fab fa-telegram-plane"></i></a>
+            <a href="https://whatsapp.com/channel/0029VbCJ2xI7IUYa1zMB6n1f" class="wa"><i class="fab fa-whatsapp"></i></a>
+        </div>
+        <p style="margin-top: 20px; font-size: 12px; color: #999;">&copy; 2026 Student Help Club.</p>
+    </footer>
+
+    <script>
+        function calculate() {
+            let obtained = parseFloat(document.getElementById('obtained').value);
+            let total = parseFloat(document.getElementById('total').value);
+
+            if (isNaN(obtained) || isNaN(total) || total === 0) {
+                alert("Please enter valid marks.");
+                return;
+            }
+
+            let percentage = (obtained / total) * 100;
+            let resArea = document.getElementById('resultArea');
+            let resText = document.getElementById('resText');
+            
+            resText.innerText = "Your Percentage: " + percentage.toFixed(2) + "%";
+            resArea.style.display = "block";
+            
+            // Grade logic
+            let grade = "";
+            if(percentage >= 60) grade = "First Division (Pass)";
+            else if(percentage >= 45) grade = "Second Division (Pass)";
+            else if(percentage >= 33) grade = "Third Division (Pass)";
+            else grade = "Fail";
+            
+            document.getElementById('gradeText').innerText = "Status: " + grade;
+            document.getElementById('gradeText').style.color = (percentage >= 33) ? "#28a745" : "#ff0000";
+        }
+    </script>
+</body>
+</html>

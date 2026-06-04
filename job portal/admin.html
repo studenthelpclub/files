@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SHC Final Admin | Student Help Club</title>
+    
+    <!-- Favicon & SEO -->
+    <link rel="icon" href="https://studenthelpclub.in/favicon.ico" type="image/x-icon">
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- Google Tag (Gtag) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-YOUR_MEASUREMENT_ID"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-YOUR_MEASUREMENT_ID');
+    </script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --primary: #003366; --bg: #f0f2f5; --success: #27ae60; --accent: #e74c3c; --white: #ffffff; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 0; }
+        .top-nav { background: var(--white); border-bottom: 2px solid var(--primary); padding: 10px 0; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .nav-container { max-width: 1200px; margin: auto; display: flex; justify-content: space-between; align-items: center; padding: 0 15px; }
+        .logo-text { font-size: 1.2rem; font-weight: 800; color: var(--primary); text-transform: uppercase; text-decoration: none; }
+        #admin-panel { padding: 30px 15px; display: none; }
+        .admin-container { max-width: 950px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); }
+        .section-title { background: #e9ecef; padding: 12px; margin: 25px 0 10px; font-weight: bold; border-left: 5px solid var(--primary); color: var(--primary); text-transform: uppercase; font-size: 0.9rem; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 4px; font-weight: 700; font-size: 1rem; color: #333; }
+        .hint { display: block; font-size: 0.8rem; color: #e83e8c; margin-bottom: 8px; font-weight: 600; background: #fff0f6; padding: 6px; border-left: 3px solid #e83e8c; }
+        input, textarea, select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem; outline: none; }
+        .btn-push { width: 100%; padding: 18px; background: var(--success); color: white; border: none; border-radius: 6px; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 20px; }
+        .btn-add-inline { background: #f39c12; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: bold; margin-bottom: 15px; }
+        .custom-box-entry { background: #f9f9f9; padding: 15px; border: 1px dashed #bbb; border-radius: 8px; margin-top: 10px; position: relative; margin-bottom: 15px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        footer { background: #0b1622; color: #bdc3c7; padding: 40px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<nav class="top-nav">
+    <div class="nav-container">
+        <a href="#" class="logo-text">SHC Super Admin</a>
+        <button id="logoutBtn" style="background:var(--accent); color:white; border:none; padding:8px 15px; border-radius:5px; cursor:pointer;">Logout</button>
+    </div>
+</nav>
+
+<div id="login-section" style="height:70vh; display:flex; align-items:center; justify-content:center;">
+    <div style="background:white; padding:40px; border-radius:12px; box-shadow:0 10px 25px rgba(0,0,0,0.1); width:350px; text-align:center;">
+        <h3>Admin Access</h3>
+        <input type="email" id="login_email" placeholder="Email" style="margin-bottom:10px;"><br>
+        <input type="password" id="login_pass" placeholder="Password" style="margin-bottom:20px;"><br>
+        <button id="loginBtn" class="btn-push" style="background:var(--primary); padding:12px; margin:0;">Login</button>
+    </div>
+</div>
+
+<div id="admin-panel">
+    <div class="admin-container">
+        <div class="form-group">
+            <label>Update Category</label>
+            <select id="db_collection">
+                <option value="jobs">Latest Jobs</option>
+                <option value="admit">Admit Card</option>
+                <option value="result">Results</option>
+                <option value="scholarship">Scholarship</option>
+                <option value="yojna">Sarkari Yojna</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Main Title</label>
+            <input type="text" id="main_title" placeholder="SSC GD Result 2026 Out">
+        </div>
+
+        <div class="form-group">
+            <label>Short Information</label>
+            <textarea id="short_info"></textarea>
+        </div>
+
+        <div class="section-title">Dates & Fees</div>
+        <div class="grid-2">
+            <div class="form-group"><label>Important Dates</label>
+            <span class="hint">Format: Text1, Text2, Text3</span>
+            <textarea id="dates_list"></textarea></div>
+            <div class="form-group"><label>Application Fees</label>
+            <span class="hint">Format: Text1, Text2, Text3</span>
+            <textarea id="fees_list"></textarea></div>
+        </div>
+
+        <div class="section-title">Vacancy & Eligibility</div>
+        <div class="form-group"><label>Age Limit</label><input type="text" id="age_details"></div>
+        <div class="form-group"><label>Vacancy Table</label>
+        <span class="hint">Format: Post | Total | Elig (Use Enter for new row)</span>
+        <textarea id="vacancy_table" placeholder="Post | Total | Elig"></textarea></div>
+        <button type="button" class="btn-add-inline" onclick="addCustomBox('container_vacancy')">+ Add Extra Box Below Vacancy</button>
+        <div id="container_vacancy"></div>
+
+        <div class="section-title">Important Links</div>
+        <div class="grid-2">
+            <div class="form-group">
+                <label>Apply Online Link</label>
+                <input type="url" id="fixed_apply_link" placeholder="https://apply-link.com">
+            </div>
+            <div class="form-group">
+                <label>Download Notification Link</label>
+                <input type="url" id="fixed_notif_link" placeholder="https://notif-pdf-link.com">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Other Custom Buttons</label>
+            <span class="hint">Format: Button Name | URL (E.g. Check Server 2 | https://...)</span>
+            <textarea id="custom_links" placeholder="Official Website | https://..."></textarea>
+        </div>
+        <button type="button" class="btn-add-inline" onclick="addCustomBox('container_links')">+ Add Text Box Below Links</button>
+        <div id="container_links"></div>
+
+        <div class="form-group" style="margin-top:20px;"><label>FAQ (Question ? Answer)</label>
+        <span class="hint">Format: Question ? Answer (Use Enter for new FAQ)</span>
+        <textarea id="faq_data"></textarea></div>
+
+        <button class="btn-push" id="submitBtn">PUBLISH NOW</button>
+    </div>
+</div>
+
+<footer><p>© 2026 Student Help Club | Admin: Vishal</p></footer>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAv_ExAgpnZnfFuc-OjDLppmavG2Z79pnw",
+        authDomain: "web-app-410cf.firebaseapp.com",
+        projectId: "web-app-410cf",
+        storageBucket: "web-app-410cf.firebasestorage.app",
+        messagingSenderId: "964826648513",
+        appId: "1:964826648513:web:8e3e1fa1d97db99f10a940"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('admin-panel').style.display = 'block';
+        } else {
+            document.getElementById('login-section').style.display = 'flex';
+            document.getElementById('admin-panel').style.display = 'none';
+        }
+    });
+
+    document.getElementById('loginBtn').addEventListener('click', () => {
+        signInWithEmailAndPassword(auth, document.getElementById('login_email').value, document.getElementById('login_pass').value)
+        .catch(err => alert("Login Error"));
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+
+    window.addCustomBox = function(targetId) {
+        const boxId = Date.now();
+        const html = `
+            <div class="custom-box-entry" data-target="${targetId}" id="box_${boxId}">
+                <button type="button" onclick="this.parentElement.remove()" style="position:absolute; right:5px; top:5px; background:red; color:white; border:none; border-radius:3px; cursor:pointer; padding: 2px 8px;">X</button>
+                <div class="grid-2">
+                    <div class="form-group"><label>Box Title</label><input type="text" class="c-title"></div>
+                    <div class="form-group"><label>Style</label><select class="c-type"><option value="bullet">Bullet</option><option value="para">Paragraph</option></select></div>
+                </div>
+                <textarea class="c-content" placeholder="Content..."></textarea>
+            </div>
+        `;
+        document.getElementById(targetId).insertAdjacentHTML('beforeend', html);
+    }
+
+    document.getElementById('submitBtn').addEventListener('click', async () => {
+        const col = document.getElementById('db_collection').value;
+        const title = document.getElementById('main_title').value;
+        if(!title) return alert("Title required!");
+
+        const makeList = (str) => (!str || str.trim() === "") ? null : str.split(',').filter(i => i.trim() !== "").map(i => `<li>${i.trim()}</li>`).join('');
+        const createBox = (t, c) => c ? `<div class="info-box"><div class="box-title">${t}</div><div class="box-content">${c}</div></div>` : "";
+        
+        const getExtraBoxes = (targetId) => {
+            let html = "";
+            document.querySelectorAll(`.custom-box-entry[data-target="${targetId}"]`).forEach(entry => {
+                const t = entry.querySelector('.c-title').value;
+                const type = entry.querySelector('.c-type').value;
+                const rawContent = entry.querySelector('.c-content').value;
+                if(t && rawContent) {
+                    const content = (type === 'bullet') ? `<ul>${makeList(rawContent)}</ul>` : `<p>${rawContent}</p>`;
+                    html += createBox(t, content);
+                }
+            });
+            return html;
+        };
+
+        let detailsHTML = `<div class="short-info"><b>Short Info:</b> ${document.getElementById('short_info').value}</div>`;
+        
+        const dates = makeList(document.getElementById('dates_list').value);
+        const fees = makeList(document.getElementById('fees_list').value);
+        if(dates || fees) {
+            detailsHTML += `<div style="display:flex; gap:10px; flex-wrap:wrap;">
+                ${dates ? `<div class="info-box" style="flex:1;"><div class="box-title">Important Dates</div><div class="box-content"><ul>${dates}</ul></div></div>` : ''}
+                ${fees ? `<div class="info-box" style="flex:1;"><div class="box-title">Application Fee</div><div class="box-content"><ul>${fees}</ul></div></div>` : ''}
+            </div>`;
+        }
+
+        detailsHTML += createBox("Age Limit", makeList(document.getElementById('age_details').value));
+        const vTableRaw = document.getElementById('vacancy_table').value;
+        if(vTableRaw && vTableRaw.includes('|')) {
+            const rows = vTableRaw.trim().split('\n').map(r => `<tr>${r.split('|').map(d => `<td>${d.trim()}</td>`).join('')}</tr>`).join('');
+            detailsHTML += createBox("Vacancy Details", `<table><tr><th>Post</th><th>Total</th><th>Elig</th></tr>${rows}</table>`);
+        }
+        detailsHTML += getExtraBoxes('container_vacancy');
+
+        const applyLink = document.getElementById('fixed_apply_link').value;
+        const notifLink = document.getElementById('fixed_notif_link').value;
+        const customLinksRaw = document.getElementById('custom_links').value;
+        
+        let linkRows = "";
+        if(applyLink) linkRows += `<tr><td><b>Apply Online / Check Result</b></td><td><a href="${applyLink}" target="_blank">Click Here</a></td></tr>`;
+        if(notifLink) linkRows += `<tr><td><b>Download Notification</b></td><td><a href="${notifLink}" target="_blank">Click Here</a></td></tr>`;
+        
+        if(customLinksRaw && customLinksRaw.includes('|')) {
+            linkRows += customLinksRaw.trim().split('\n').map(l => {
+                const p = l.split('|'); return `<tr><td>${p[0].trim()}</td><td><a href="${p[1].trim()}" target="_blank">Click Here</a></td></tr>`;
+            }).join('');
+        }
+        
+        linkRows += `<tr><td>Join Telegram Group</td><td><a href="https://t.me/studenthelpclub" style="color:#0088cc;">Join Now</a></td></tr>`;
+        linkRows += `<tr><td>Join WhatsApp Channel</td><td><a href="https://whatsapp.com/channel/0029VbCJ2xI7IUYa1zMB6n1f" style="color:#25d366;">Join Now</a></td></tr>`;
+        linkRows += `<tr><td>Subscribe YouTube</td><td><a href="https://youtube.com/@vishalhelpclub" style="color:red;">Subscribe</a></td></tr>`;
+
+        detailsHTML += `<div class="info-box"><div class="box-title" style="background:#27ae60; color:white;">Important Links</div><div class="box-content"><table class="link-table">${linkRows}</table></div></div>`;
+        detailsHTML += getExtraBoxes('container_links');
+
+        const faqInput = document.getElementById('faq_data').value;
+        if(faqInput) {
+            const faqs = faqInput.trim().split('\n').map(l => { const p = l.split('?'); return p.length > 1 ? `<div class="faq-item"><b>Q. ${p[0]}?</b><br>Ans: ${p[1]}</div>` : ''; }).join('');
+            detailsHTML += createBox("FAQ", faqs);
+        }
+
+        try {
+            await addDoc(collection(db, col), { title, details: detailsHTML, timestamp: serverTimestamp() });
+            alert("Published Successfully!"); location.reload();
+        } catch (e) { alert("Error!"); }
+    });
+</script>
+</body>
+</html>

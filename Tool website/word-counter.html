@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Counter & Case Converter - Student Help Club</title>
+    
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="shortcut icon" href="/favicon.ico">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3110600191216941" crossorigin="anonymous"></script>
+</head>
+<body>
+
+    <header class="header">
+        <img src="shc-logo.jpg" alt="SHC Logo" class="logo" onerror="this.src='https://via.placeholder.com/60?text=Logo'">
+        <h1>STUDENT HELP CLUB</h1>
+    </header>
+
+    <nav class="main-nav">
+        <ul>
+            <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
+            <li><a href="word-counter.html" class="active"><i class="fas fa-font"></i> Word Counter</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <h2>Word Counter & Text Tool</h2>
+        <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Count words, characters, and change text case instantly.</p>
+        
+        <textarea id="textInput" placeholder="Paste or type your text here..." style="width: 100%; height: 200px; padding: 15px; border: 2px solid #0d6efd; border-radius: 12px; font-size: 16px; margin-bottom: 20px; outline: none; transition: 0.3s;"></textarea>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
+            <div style="background: #f8fbff; padding: 15px; border-radius: 10px; border: 1px solid #dee2e6;">
+                <span style="display: block; font-size: 24px; font-weight: bold; color: #0d6efd;" id="wordCount">0</span>
+                <span style="font-size: 14px; color: #666;">Words</span>
+            </div>
+            <div style="background: #f8fbff; padding: 15px; border-radius: 10px; border: 1px solid #dee2e6;">
+                <span style="display: block; font-size: 24px; font-weight: bold; color: #0d6efd;" id="charCount">0</span>
+                <span style="font-size: 14px; color: #666;">Characters</span>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;">
+            <button onclick="changeCase('upper')" class="select-btn" style="background: #1d3557; color: white;">UPPERCASE</button>
+            <button onclick="changeCase('lower')" class="select-btn" style="background: #1d3557; color: white;">lowercase</button>
+            <button onclick="changeCase('sentence')" class="select-btn" style="background: #1d3557; color: white;">Sentence case</button>
+            <button onclick="clearText()" class="reset-btn">Clear Text</button>
+        </div>
+
+        <button onclick="copyText()" class="download-btn" id="copyBtn" style="margin-top: 20px;">
+            <i class="fas fa-copy"></i> Copy To Clipboard
+        </button>
+
+        <div class="how-to-use">
+            <h3 style="color: #333; border-bottom: 2px solid #0d6efd; display: inline-block; padding-bottom: 5px;">How to Use?</h3>
+            <ul style="margin-top: 15px; color: #555; line-height: 1.8; font-size: 14px; text-align: left; padding-left: 20px;">
+                <li>Paste your content in the text box above.</li>
+                <li>Check the real-time <b>Word</b> and <b>Character</b> count.</li>
+                <li>Click on case buttons to change text style instantly.</li>
+                <li>Click <b>Copy</b> to use the updated text anywhere.</li>
+            </ul>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>Follow Us For Updates:</p>
+        <div class="social-links">
+            <a href="https://www.youtube.com/@vishalhelpclub?sub_confirmation=1" target="_blank" class="youtube"><i class="fab fa-youtube"></i></a>
+            <a href="https://t.me/studenthelpclub" target="_blank" class="telegram"><i class="fab fa-telegram-plane"></i></a>
+            <a href="https://whatsapp.com/channel/0029VbCJ2xI7IUYa1zMB6n1f" target="_blank" class="whatsapp"><i class="fab fa-whatsapp"></i></a>
+        </div>
+        <div class="footer-nav-links" style="margin-top: 15px;">
+            <a href="about.html" style="color: #888; text-decoration: none;">About Us</a> | 
+            <a href="contact.html" style="color: #888; text-decoration: none;">Contact Us</a> | 
+            <a href="privacy-policy.html" style="color: #888; text-decoration: none;">Privacy Policy</a>
+        </div>
+    </footer>
+
+    <script>
+        const textInput = document.getElementById('textInput');
+        const wordCount = document.getElementById('wordCount');
+        const charCount = document.getElementById('charCount');
+
+        textInput.addEventListener('input', () => {
+            const text = textInput.value.trim();
+            charCount.innerText = text.length;
+            wordCount.innerText = text === "" ? 0 : text.split(/\s+/).length;
+        });
+
+        function changeCase(type) {
+            let text = textInput.value;
+            if (type === 'upper') text = text.toUpperCase();
+            if (type === 'lower') text = text.toLowerCase();
+            if (type === 'sentence') {
+                text = text.toLowerCase().replace(/(^\s*\w|[\.\!\?]\s*\w)/g, c => c.toUpperCase());
+            }
+            textInput.value = text;
+        }
+
+        function clearText() {
+            textInput.value = "";
+            wordCount.innerText = "0";
+            charCount.innerText = "0";
+        }
+
+        function copyText() {
+            textInput.select();
+            document.execCommand('copy');
+            const btn = document.getElementById('copyBtn');
+            btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fas fa-copy"></i> Copy To Clipboard';
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

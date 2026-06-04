@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Free Hand Image Cropper & Resizer - Student Help Club</title>
+    
+    <link rel="icon" type="image/jpg" href="shc-logo.jpg">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-WKEZF1XEMF"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-WKEZF1XEMF');
+    </script>
+
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3110600191216941" crossorigin="anonymous"></script>
+
+    <style>
+        #cropperContainer {
+            max-width: 100%;
+            height: 400px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            overflow: hidden;
+            background-color: #f8f9fa;
+            display: none;
+        }
+        #cropperImage {
+            max-width: 100%;
+            display: block;
+        }
+        /* Mobile Selection Fix */
+        .upload-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 2px dashed #007bff;
+            padding: 40px 20px;
+            border-radius: 15px;
+            text-align: center;
+            background: #f8fbff;
+            transition: 0.3s;
+        }
+        .upload-label:active { background: #eef5ff; }
+        .select-btn-ui {
+            margin-top: 10px; 
+            background: #28a745; 
+            color: white; 
+            padding: 12px 30px; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            width: 80%; 
+            max-width: 300px;
+            pointer-events: none; /* Click label par transfer hoga */
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <img src="shc-logo.jpg" alt="SHC Logo" class="logo" onerror="this.src='https://via.placeholder.com/60?text=Logo'">
+        <h1>STUDENT HELP CLUB</h1>
+    </header>
+
+    <nav class="main-nav">
+        <ul>
+            <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
+            <li><a href="image-resize.html" class="active"><i class="fas fa-expand-arrows-alt"></i> Image Resize</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <h2>Free Image Cropper & Resizer</h2>
+        <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Adjust Crop Box Freely & Target Specific File Size (KB)</p>
+        
+        <label for="imageInput" class="upload-label" id="dropZone">
+            <i class="fas fa-expand-arrows-alt" style="font-size: 50px; color: #28a745;"></i>
+            <p id="statusText" style="margin-top: 15px; font-weight: 500;">Select or Drag Image to Crop</p>
+            <input type="file" id="imageInput" accept="image/*" style="display: none;">
+            <div class="select-btn-ui">Choose Photo</div>
+        </label>
+
+        <div id="settingsArea" style="display: none; margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
+            <div id="cropperContainer">
+                <img id="cropperImage" src="">
+            </div>
+            <p style="font-size: 12px; color: #666; margin-bottom: 15px;"><i class="fas fa-info-circle"></i> Drag the corners of the box to resize. Move the box as needed.</p>
+
+            <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                <div style="flex: 1; text-align: left;">
+                    <label style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 5px;">Output Width (px):</label>
+                    <input type="number" id="targetWidth" placeholder="Autosize" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box;">
+                </div>
+                <div style="flex: 1; text-align: left;">
+                    <label style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 5px;">Output Height (px):</label>
+                    <input type="number" id="targetHeight" placeholder="Autosize" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box;">
+                </div>
+            </div>
+
+            <div class="input-group" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <label style="font-weight: 600;">Target Size (Max KB):</label>
+                <input type="number" id="targetKb" value="50" style="width: 100px; padding: 10px; border: 1px solid #ccc; border-radius: 8px; text-align: center; font-weight: bold; color: #007bff;">
+            </div>
+
+            <button id="resizeBtn" class="main-btn" style="background: #28a745; width: 100%; padding: 15px; border: none; border-radius: 10px; color: white; font-weight: bold; font-size: 16px;">Crop, Resize & Save</button>
+        </div>
+
+        <div style="margin: 20px 0; text-align: center;">
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-3110600191216941"
+                 data-ad-slot="YOUR_AD_SLOT_HERE"
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+            <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+        </div>
+
+        <div id="resultArea" style="display: none; margin-top: 30px; text-align: center;">
+            <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 25px;">
+            <h3 style="color: #28a745;"><i class="fas fa-check-circle"></i> Successfully Processed!</h3>
+            <img id="finalPreview" src="" style="max-width: 100%; border-radius: 12px; border: 1px solid #ddd; margin-bottom: 15px;">
+            <p id="finalImageSize" style="font-weight: bold; color: #0056b3; font-size: 20px; margin: 15px 0;"></p>
+            <button id="downloadBtn" class="download-btn" style="background: #007bff; width: 100%; padding: 15px; border: none; border-radius: 10px; color: white; font-weight: bold;">Download Final Image</button>
+        </div>
+
+        <div class="how-to-use">
+            <h3 style="color: #333; border-bottom: 2px solid #28a745; display: inline-block; padding-bottom: 5px;">How to Crop?</h3>
+            <ul style="margin-top: 15px; color: #555; line-height: 1.8; font-size: 14px; text-align: left; padding-left: 20px;">
+                <li>Upload the photo (Supports JPG, PNG, HEIC).</li>
+                <li>Drag corners of the box to select part you need.</li>
+                <li>Set Target KB and click Save.</li>
+            </ul>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>Follow Us For Updates:</p>
+        <div class="social-links">
+            <a href="https://www.youtube.com/@vishalhelpclub?sub_confirmation=1" target="_blank" class="youtube"><i class="fab fa-youtube"></i></a>
+            <a href="https://t.me/studenthelpclub" target="_blank" class="telegram"><i class="fab fa-telegram-plane"></i></a>
+            <a href="https://whatsapp.com/channel/0029VbCJ2xI7IUYa1zMB6n1f" target="_blank" class="whatsapp"><i class="fab fa-whatsapp"></i></a>
+        </div>
+    </footer>
+
+    <script src="image-resizer-logic.js"></script>
+</body>
+</html>

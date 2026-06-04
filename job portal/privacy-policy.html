@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-7RK3WFVY3Q"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-7RK3WFVY3Q');
+    </script>
+    <meta name="google-site-verification" content="ySBKvgRcffZgkku3SImRkt6T7rm0r_L6OfClnFXGrrc" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>Privacy Policy | Student Help Club - India's Trusted Educational Portal</title>
+    <meta name="description" content="Privacy Policy for Student Help Club - Detailed information on how we collect, use, and protect your data, including cookies and third-party advertising practices.">
+    <meta name="keywords" content="Privacy Policy Student Help Club, SHC Data Protection, User Privacy, Disclaimer Policy">
+    <meta name="author" content="Vishal - Student Help Club">
+    <meta name="robots" content="index, follow">
+    
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root { 
+            --primary: #0f172a; 
+            --primary-light: #1e293b;
+            --accent: #ef4444; 
+            --bg-body: #f8fafc; 
+            --white: #ffffff; 
+            --nav-bg: #0f172a; 
+            --text-main: #334155;
+            --radius: 12px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --header-gradient: linear-gradient(135deg, #1e293b, #0f172a);
+        }
+        
+        body { 
+            font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+            background: var(--bg-body); 
+            margin: 0; 
+            color: var(--text-main);
+            -webkit-font-smoothing: antialiased;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* --- Top Bar --- */
+        .top-bar { background: var(--nav-bg); color: #cbd5e1; padding: 8px 0; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .top-container { max-width: 1200px; margin: auto; display: flex; justify-content: space-between; padding: 0 20px; align-items: center; }
+        .top-links a { color: #cbd5e1; text-decoration: none; margin-left: 20px; transition: var(--transition); display: inline-flex; align-items: center; gap: 6px; }
+        .top-links a:hover { color: #fff; }
+        .top-links a.ws-link:hover { color: #22c55e; }
+
+        /* --- Main Nav Header --- */
+        .header-main { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); padding: 14px 0; box-shadow: 0 4px 20px -2px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 1000; transition: var(--transition); }
+        .header-container { max-width: 1200px; margin: auto; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; gap: 20px; }
+        
+        .logo-box { display: flex; align-items: center; text-decoration: none; flex-shrink: 0; transition: var(--transition); }
+        .logo-box:hover { opacity: 0.9; }
+        .logo-img { height: 44px; width: auto; margin-right: 12px; border-radius: 8px; object-fit: cover; }
+        .logo-text { font-size: 1.6rem; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: -0.5px; margin: 0; }
+        .logo-text span { color: var(--accent); }
+
+        .search-wrapper { flex-grow: 1; max-width: 400px; position: relative; }
+        .search-box { display: flex; position: relative; }
+        .search-box input { width: 100%; padding: 12px 50px 12px 20px; border-radius: 30px; border: 2px solid #e2e8f0; outline: none; font-size: 14px; font-weight: 500; transition: var(--transition); background: #f8fafc; }
+        .search-box input:focus { border-color: var(--primary-light); background: var(--white); box-shadow: 0 0 0 4px rgba(15, 23, 42, 0.08); }
+        .search-box button { position: absolute; right: 5px; top: 5px; height: 38px; width: 38px; border: none; background: var(--primary); color: white; border-radius: 50%; cursor: pointer; transition: var(--transition); display: flex; align-items: center; justify-content: center; }
+
+        #search-results { position: absolute; top: 55px; left: 0; width: 100%; background: white; border-radius: var(--radius); box-shadow: 0 12px 30px rgba(0,0,0,0.15); display: none; z-index: 2000; max-height: 380px; overflow-y: auto; border: 1px solid #e2e8f0; padding: 8px 0; }
+        #search-results::-webkit-scrollbar { width: 6px; }
+        #search-results::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        .header-menu { display: flex; gap: 20px; align-items: center; }
+        .header-menu a { text-decoration: none; color: var(--text-main); font-weight: 600; font-size: 0.88rem; text-transform: uppercase; transition: var(--transition); letter-spacing: 0.3px; }
+        .header-menu a:hover { color: var(--accent); }
+
+        .ticker-wrap { background: #fefce8; color: #713f12; padding: 10px 0; border-bottom: 1px solid #fef08a; font-weight: 600; font-size: 13.5px; text-align: center; }
+
+        /* --- Main Content Area --- */
+        .main-content { flex: 1; padding: 40px 20px; }
+        .container { max-width: 850px; margin: 0 auto; }
+        
+        .btn-home { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 25px; color: #475569; text-decoration: none; font-weight: 600; font-size: 0.9rem; background: var(--white); padding: 8px 16px; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.04); border: 1px solid #e2e8f0; transition: var(--transition); }
+        .btn-home:hover { color: var(--accent); border-color: var(--accent); transform: translateX(-3px); }
+
+        .content-main-card { background: var(--white); border-radius: var(--radius); border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02), 0 10px 15px -3px rgba(0,0,0,0.03); padding: 40px 35px; text-align: left; }
+        .page-header-box { background: var(--header-gradient); padding: 24px; border-radius: var(--radius); color: white; box-shadow: 0 10px 20px -5px rgba(15, 23, 42, 0.15); margin-bottom: 30px; text-align: center; }
+        .page-header-box h1 { margin: 0; font-size: 1.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #fff; }
+
+        .content-main-card h2 { color: var(--primary); font-size: 1.3rem; margin-top: 30px; margin-bottom: 15px; }
+        .content-main-card h3 { color: var(--primary); font-size: 1.15rem; margin-top: 25px; }
+        .content-main-card p { line-height: 1.8; color: #475569; font-size: 1.05rem; margin-bottom: 20px; text-align: justify; }
+        .content-main-card ul { margin-bottom: 20px; color: #475569; padding-left: 20px; }
+        .content-main-card li { margin-bottom: 10px; line-height: 1.7; }
+        .content-main-card b { color: var(--primary); font-weight: 700; }
+        
+        /* --- Footer --- */
+        footer { background: #0f172a; color: #94a3b8; padding: 50px 20px 25px; margin-top: auto; border-top: 4px solid var(--primary-light); text-align: left; }
+        .footer-container { max-width: 1200px; margin: auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 50px; }
+        .footer-sec h3 { color: #fff; font-size: 1.05rem; margin-bottom: 20px; border-left: 3px solid var(--accent); padding-left: 12px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
+        .footer-sec ul { list-style: none; padding: 0; margin: 0; }
+        .footer-sec ul li { margin-bottom: 12px; }
+        .footer-sec ul li a { color: #94a3b8; text-decoration: none; font-size: 0.92rem; transition: var(--transition); }
+        .footer-sec ul li a:hover { color: #fff; padding-left: 6px; }
+        
+        .social-box { display: flex; gap: 14px; margin-top: 15px; }
+        .social-box a { color: white; background: #1e293b; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: var(--transition); text-decoration: none; }
+        .social-box a:hover { transform: translateY(-4px); }
+        .social-box a.tg-f:hover { background: #0088cc; }
+        .social-box a.yt-f:hover { background: #ff0000; }
+        .social-box a.wa-f:hover { background: #25D366; }
+        
+        .footer-bottom { text-align: center; margin-top: 50px; padding-top: 22px; border-top: 1px solid #1e293b; font-size: 13px; color: #64748b; }
+
+        @media (max-width: 992px) { .header-container { flex-direction: column; gap: 12px; } .footer-container { grid-template-columns: 1fr; text-align: center; } }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div class="top-container">
+        <span><i class="fas fa-calendar-alt"></i> <span id="current-date"></span></span>
+        <div class="top-links">
+            <a href="https://t.me/studenthelpclub" target="_blank"><i class="fab fa-telegram"></i> Telegram</a>
+            <a href="https://whatsapp.com/channel/0029VbCJ2xI7IUYa1zMB6n1f" class="ws-link" target="_blank"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+        </div>
+    </div>
+</div>
+
+<div class="header-main">
+    <div class="header-container">
+        <a href="index.html" class="logo-box">
+            <img src="shc-logo.jpg" alt="Student Help Club Logo" class="logo-img">
+            <h1 class="logo-text">Student Help <span>Club</span></h1>
+        </a>
+        <div class="search-wrapper">
+            <div class="search-box">
+                <input type="text" id="live-search" placeholder="Search Results, Jobs...">
+                <button aria-label="Search"><i class="fas fa-search"></i></button>
+            </div>
+            <div id="search-results"></div>
+        </div>
+        <div class="header-menu">
+            <a href="index.html">Home</a>
+            <a href="jobs.html">Jobs</a>
+            <a href="admit-cards.html">Admit Card</a>
+            <a href="results.html">Results</a>
+            <a href="scholarship.html">Scholarship</a>
+        </div>
+    </div>
+</div>
+
+<div class="ticker-wrap">
+    <marquee id="top-ticker" scrollamount="6" onmouseover="this.stop();" onmouseout="this.start();">Loading latest updates...</marquee>
+</div>
+
+<div class="main-content">
+    <div class="container">
+        <a href="index.html" class="btn-home"><i class="fas fa-arrow-left"></i> Back to Home</a>
+        
+        <div class="content-main-card">
+            <div class="page-header-box">
+                <h1>Privacy Policy</h1>
+            </div>
+            
+            <p>आपकी गोपनीयता (Privacy) हमारे लिए अत्यंत महत्वपूर्ण है। <b>Student Help Club (SHC)</b> पर हम अपने उपयोगकर्ताओं की व्यक्तिगत जानकारी की सुरक्षा के लिए प्रतिबद्ध हैं। यह गोपनीयता नीति दस्तावेज़ बताती है कि हम कौन सी जानकारी एकत्र करते हैं, क्यों करते हैं और इसका उपयोग कैसे किया जाता है।</p>
+            
+            <h2>1. परिचय</h2>
+            <p>इस वेबसाइट ("Student Help Club") का उपयोग करते समय, आप इस गोपनीयता नीति की शर्तों से सहमत होते हैं। हम इस नीति को समय-समय पर अपडेट कर सकते हैं, इसलिए हम आपको नियमित रूप से इसे देखने की सलाह देते हैं।</p>
+
+            <h2>2. हम कौन सी जानकारी एकत्र करते हैं?</h2>
+            <p>हम निम्नलिखित प्रकार की जानकारी एकत्र कर सकते हैं:</p>
+            <ul>
+                <li><b>तकनीकी जानकारी:</b> आपका IP पता, ब्राउज़र का प्रकार, ऑपरेटिंग सिस्टम, और आपके द्वारा उपयोग किए जाने वाले डिवाइस की जानकारी।</li>
+                <li><b>वेबसाइट उपयोग डेटा:</b> आप हमारे किन पेजों को देखते हैं, आपने कितना समय बिताया और किस सामग्री के साथ इंटरैक्ट किया।</li>
+                <li><b>संपर्क जानकारी:</b> यदि आप हमें ईमेल या संपर्क फॉर्म के माध्यम से संदेश भेजते हैं, तो आपका नाम, ईमेल पता और आपके द्वारा प्रदान की गई जानकारी।</li>
+            </ul>
+
+            <h2>3. कुकीज़ (Cookies) और विज्ञापन</h2>
+            <p>हमारा लक्ष्य आपको बेहतर अनुभव प्रदान करना है। इसके लिए हम कुकीज़ का उपयोग करते हैं:</p>
+            <ul>
+                <li><b>विज्ञापन कुकीज़:</b> Google AdSense जैसे विज्ञापनदाता आपकी रुचियों के आधार पर विज्ञापन दिखाने के लिए कुकीज़ का उपयोग कर सकते हैं।</li>
+                <li><b>Google DART कुकी:</b> यह Google को आपकी पिछली ब्राउज़िंग आदतों के आधार पर विज्ञापन दिखाने की अनुमति देती है। आप अपने ब्राउज़र सेटिंग्स में जाकर कुकीज़ को डिसेबल कर सकते हैं।</li>
+            </ul>
+
+            <h2>4. डेटा का उपयोग</h2>
+            <p>हम एकत्र की गई जानकारी का उपयोग निम्नलिखित उद्देश्यों के लिए करते हैं:</p>
+            <ul>
+                <li>वेबसाइट की गति और प्रदर्शन में सुधार करना।</li>
+                <li>यह समझने के लिए कि कौन से सरकारी नौकरी के अपडेट और परिणाम (Results) छात्रों के लिए सबसे महत्वपूर्ण हैं।</li>
+                <li>हमारी सेवाओं को बेहतर बनाने के लिए सांख्यिकीय विश्लेषण (Analytics) करना।</li>
+                <li>सुरक्षा उद्देश्यों के लिए और अनधिकृत पहुंच (Unauthorized access) को रोकने के लिए।</li>
+            </ul>
+
+            <h2>5. बाहरी वेबसाइटों के लिंक</h2>
+            <p>Student Help Club पर सरकारी वेबसाइटों, परीक्षा पोर्टल और अन्य शैक्षिक संस्थानों के बाहरी लिंक दिए गए हैं। कृपया ध्यान दें कि हम उन वेबसाइटों के लिए जिम्मेदार नहीं हैं। उनकी गोपनीयता नीति हमसे भिन्न हो सकती है, इसलिए उन पर डेटा साझा करने से पहले उनकी नीतियों को पढ़ें।</p>
+
+            <h2>6. डेटा सुरक्षा</h2>
+            <p>हम अपने सर्वर और डेटाबेस की सुरक्षा के लिए आधुनिक तकनीकों का उपयोग करते हैं। हालांकि, ध्यान दें कि इंटरनेट पर डेटा ट्रांसफर की कोई भी विधि 100% सुरक्षित नहीं है। हम आपकी जानकारी को अनधिकृत एक्सेस से बचाने के लिए निरंतर काम करते हैं।</p>
+
+            <h2>7. बच्चों की गोपनीयता</h2>
+            <p>हमारी वेबसाइट बच्चों के लिए नहीं है, और हम जानबूझकर 13 वर्ष से कम आयु के बच्चों से कोई व्यक्तिगत जानकारी एकत्र नहीं करते हैं। यदि आपको लगता है कि किसी बच्चे ने हमें जानकारी दी है, तो कृपया संपर्क करें।</p>
+
+            <h2>8. सहमति और बदलाव</h2>
+            <p>इस वेबसाइट का उपयोग करके, आप इस गोपनीयता नीति को स्वीकार करते हैं। यदि हम इस नीति में बदलाव करते हैं, तो हम उन्हें इस पृष्ठ पर अपडेट करेंगे।</p>
+            
+            <p>अगर आपको हमारी गोपनीयता नीति के बारे में कोई संदेह है, तो आप हमारे 'Contact Us' पेज पर दिए गए विवरण का उपयोग करके हमसे सीधे संपर्क कर सकते हैं।</p>
+        </div>
+    </div>
+</div>
+
+<footer>
+    <div class="footer-container">
+        <div class="footer-sec"><h3>Important Pages</h3><ul><li><a href="about.html">About Us</a></li><li><a href="contact.html">Contact Us</a></li><li><a href="privacy-policy.html">Privacy Policy</a></li><li><a href="disclaimer.html">Disclaimer</a></li></ul></div>
+        <div class="footer-sec"><h3>Resources</h3><ul><li><a href="https://tools.studenthelpclub.in" target="_blank">Tools for Students</a></li><li><a href="https://studenthelpclub.in" target="_blank">IGNOU Assignment PDF</a></li></ul></div>
+        <div class="footer-sec"><h3>Connect</h3><div class="social-box"><a href="https://t.me/studenthelpclub" class="tg-f" target="_blank"><i class="fab fa-telegram-plane"></i></a><a href="https://youtube.com/@vishalhelpclub" class="yt-f" target="_blank"><i class="fab fa-youtube"></i></a><a href="https://whatsapp.com/channel/0029VbCJ2xI7IUYa1zMB6n1f" class="wa-f" target="_blank"><i class="fab fa-whatsapp"></i></a></div></div>
+    </div>
+    <div class="footer-bottom"><p>© 2026 Student Help Club | Admin: Vishal</p></div>
+</footer>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAv_ExAgpnZnfFuc-OjDLppmavG2Z79pnw",
+        authDomain: "web-app-410cf.firebaseapp.com",
+        projectId: "web-app-410cf",
+        storageBucket: "web-app-410cf.firebasestorage.app",
+        messagingSenderId: "964826648513",
+        appId: "1:964826648513:web:8e3e1fa1d97db99f10a940"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let searchData = [];
+    let marqueeCandidates = {};
+
+    document.getElementById('current-date').innerText = new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+
+    function updateGlobalMarquee() {
+        const categories = Object.values(marqueeCandidates);
+        if (categories.length > 0) {
+            const latest = categories.sort((a, b) => b.time - a.time)[0];
+            document.getElementById('top-ticker').innerHTML = `🔥 <span style="color:#ef4444; font-weight:800;">LATEST:</span> ${latest.title} <a href="post.html?col=${latest.cat}&id=${latest.id}" style="color:#2563eb; text-decoration:none; font-weight:700; margin-left:5px;"> [Check Now]</a>`;
+        }
+    }
+
+    function syncSearchAndMarquee(col) {
+        const q = query(collection(db, col), orderBy("timestamp", "desc"), limit(12));
+        onSnapshot(q, (snapshot) => {
+            snapshot.docs.forEach((doc, index) => {
+                const data = doc.data();
+                if (index === 0 && data.timestamp) {
+                    marqueeCandidates[col] = { id: doc.id, title: data.title, cat: col, time: data.timestamp.toMillis() };
+                    updateGlobalMarquee();
+                }
+                searchData.push({ id: doc.id, title: data.title, cat: col });
+            });
+        });
+    }
+
+    const allCols = ['jobs', 'admit', 'result', 'yojna', 'scholarship'];
+    allCols.forEach(col => syncSearchAndMarquee(col));
+
+    const searchInput = document.getElementById('live-search');
+    const resultsDiv = document.getElementById('search-results');
+    searchInput.addEventListener('input', (e) => {
+        const val = e.target.value.toLowerCase();
+        resultsDiv.innerHTML = '';
+        if (val.length < 2) { resultsDiv.style.display = 'none'; return; }
+        const filtered = searchData.filter((v, i, a) => a.findIndex(t => (t.id === v.id)) === i)
+                           .filter(item => item.title.toLowerCase().includes(val));
+        if (filtered.length > 0) {
+            resultsDiv.style.display = 'block';
+            filtered.slice(0, 10).forEach(item => {
+                resultsDiv.innerHTML += `<a href="post.html?col=${item.cat}&id=${item.id}" style="padding:12px 20px; display:block; border-bottom:1px solid #f1f5f9; text-decoration:none; color:#334155; font-size:14px; font-weight:500; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'"><span style="background:#e2e8f0; color:#475569; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:700; margin-right:8px; text-transform:uppercase;">${item.cat}</span>${item.title}</a>`;
+            });
+        }
+    });
+    document.addEventListener('click', (e) => { if(!searchInput.contains(e.target)) resultsDiv.style.display = 'none'; });
+</script>
+</body>
+</html>

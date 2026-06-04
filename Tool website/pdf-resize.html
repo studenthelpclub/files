@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Resize - Student Help Club</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3110600191216941"
+     crossorigin="anonymous"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-WKEZF1XEMF"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-WKEZF1XEMF');
+</script>
+
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3110600191216941"
+     crossorigin="anonymous"></script>
+
+<link rel="icon" type="image/jpg" href="shc-logo.jpg">
+</head>
+<body>
+
+    <header class="header">
+        <img src="shc-logo.jpg" alt="SHC Logo" class="logo" onerror="this.src='https://via.placeholder.com/60?text=Logo'">
+        <h1>STUDENT HELP CLUB</h1>
+    </header>
+
+    <nav class="main-nav">
+        <ul>
+            <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
+            <li><a href="pdf-resize.html" class="active"><i class="fas fa-compress-arrows-alt"></i> PDF Resize</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <h2>Smart PDF Resizer</h2>
+        <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Compress PDF to exact KB for online applications</p>
+        
+        <div class="upload-container" id="pdfDropZone">
+            <i class="fas fa-file-pdf" style="font-size: 50px; color: #0d6efd;"></i>
+            <p id="pdfStatusText" style="margin-top: 15px; font-weight: 500;">Select or Drag PDF here</p>
+            <input type="file" id="pdfInput" accept="application/pdf" hidden>
+            <button type="button" class="select-btn" style="margin-top: 10px; background: #0d6efd; color: white;">Select PDF</button>
+        </div>
+
+        <div id="pdfSettings" style="display: none; margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
+            <div id="selectedFileName" style="font-size: 13px; color: #333; margin-bottom: 15px; font-weight: bold; text-align: left;"></div>
+            
+            <div class="input-group" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <label style="font-weight: 600;">Target Size (Max KB):</label>
+                <input type="number" id="targetKb" value="200" style="width: 120px; padding: 10px; border: 1px solid #ccc; border-radius: 8px;">
+            </div>
+
+            <button id="resizePdfBtn" class="main-btn">
+                Compress PDF
+            </button>
+        </div>
+
+        <div id="pdfResultArea" style="display: none; margin-top: 30px;">
+            <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 25px;">
+            <h3 style="color: #198754;"><i class="fas fa-check-circle"></i> Compression Successful!</h3>
+            <div id="previewContainer" style="margin-top: 15px;"></div>
+            <p id="finalPdfSize" style="font-weight: bold; color: #0056b3; font-size: 20px; margin: 15px 0;"></p>
+            <button id="downloadPdfBtn" class="download-btn">
+                Download Compressed PDF
+            </button>
+        </div>
+
+        <div class="how-to-use">
+            <h3 style="color: #333; border-bottom: 2px solid #0d6efd; display: inline-block; padding-bottom: 5px;">How to Use PDF Resizer?</h3>
+            <ul style="margin-top: 15px; color: #555; line-height: 1.8; font-size: 14px; text-align: left; padding-left: 20px;">
+                <li>Upload your PDF file.</li>
+                <li>Enter the <b>Target KB</b> (e.g. 100 or 200).</li>
+                <li>Click <b>"Compress PDF"</b>.</li>
+                <li>Wait for processing and <b>Download</b>.</li>
+            </ul>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>Follow Us For Updates:</p>
+        <div class="social-links">
+            <a href="https://www.youtube.com/@vishalhelpclub?sub_confirmation=1" target="_blank" class="youtube"><i class="fab fa-youtube"></i></a>
+            <a href="https://t.me/studenthelpclub" target="_blank" class="telegram"><i class="fab fa-telegram-plane"></i></a>
+            <a href="https://whatsapp.com/channel/0029VbCJ2xI7IUYa1zMB6n1f" target="_blank" class="whatsapp"><i class="fab fa-whatsapp"></i></a>
+        </div>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="pdf-resize.js"></script>
+</body>
+</html>

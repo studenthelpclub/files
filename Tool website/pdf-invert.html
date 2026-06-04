@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Color Inverter - Student Help Club</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: sans-serif; background: #f4f7f6; margin: 0; padding: 0; }
+        .container { max-width: 500px; margin: 40px auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); text-align: center; }
+        .upload-container { border: 2px dashed #1d3557; padding: 40px 20px; border-radius: 10px; cursor: pointer; background: #f8f9fa; }
+        .main-btn { background: #1d3557; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 16px; width: 100%; margin-top: 20px; font-weight: bold; }
+        .download-btn { background: #198754; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 18px; width: 100%; margin-top: 20px; font-weight: bold; display: none; }
+        .main-btn:disabled { background: #ccc; cursor: not-allowed; }
+        #selectedFileName { margin-top: 15px; font-size: 14px; color: #1d3557; font-weight: bold; }
+        .success-msg { color: #198754; margin-top: 20px; display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2 style="color: #1d3557;">Smart PDF Inverter</h2>
+        <p style="color: #666; font-size: 14px;">Dark Mode for your PDF files</p>
+
+        <div class="upload-container" id="dropZone">
+            <i class="fas fa-file-pdf" style="font-size: 50px; color: #1d3557;"></i>
+            <p id="statusText">Click or Drag PDF here</p>
+            <input type="file" id="pdfInput" accept="application/pdf" hidden>
+        </div>
+
+        <div id="selectedFileName"></div>
+
+        <button id="invertBtn" class="main-btn" style="display: none;">
+            Invert Colors Now
+        </button>
+
+        <div id="resultArea">
+            <div class="success-msg" id="successMsg">
+                <i class="fas fa-check-circle"></i> Inversion Successful!
+            </div>
+            <button id="downloadBtn" class="download-btn">
+                <i class="fas fa-download"></i> Download Inverted PDF
+            </button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+    <script src="pdf-invert-logic.js"></script>
+</body>
+</html>
