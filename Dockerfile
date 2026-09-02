@@ -1,6 +1,5 @@
 FROM python:3.10-slim
 
-# Debian slim ke liye clean aur updated Chromium dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     curl \
@@ -41,4 +40,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD gunicorn api.index:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
+# ⚠️ YAHAN BADLAAV KIYA HAI ('api.index' ki jagah sirf 'index' kar diya hai)
+CMD gunicorn index:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
