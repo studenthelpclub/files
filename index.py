@@ -2,6 +2,9 @@ import os
 import time
 import json
 import re
+import threading
+import requests
+from bs4 import BeautifulSoup
 import telebot
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -23,7 +26,11 @@ if not TOKEN:
 bot = telebot.TeleBot(TOKEN, threaded=False)
 app = Flask(__name__)
 
+# Aapke Channels/Groups jahan Auto-Posts jayenge
 REQUIRED_CHATS = ['@studenthelpclub', '@studenthelpclubofficial'] 
+AUTO_POST_GROUP = '@studenthelpclubofficial'  # YouTube video idhar post honge
+AUTO_ALERT_CHANNEL = '@studenthelpclub'       # IGNOU Alerts idhar post honge
+
 FINAL_GROUP_LINK = "https://t.me/+YwUmMpjCgHFkZDdl"
 YOUTUBE_CHANNEL_LINK = "https://www.youtube.com/@vishalhelpclub"
 ADMIN_USERNAME_LINK = "https://t.me/studenthelpclub1"
@@ -34,13 +41,15 @@ UTILITY_TOOLS = "https://shctools.in/"
 
 QR_CODE_URL = "https://raw.githubusercontent.com/studenthelpclub/files/main/qrcode.jpg"
 UPI_ID = "studenthelpclub@naviaxis"
-PRICE_PER_PDF = 20  # Per PDF price
+PRICE_PER_PDF = 20  
 
 WAITING_FOR_ENROLLMENT = set()
 WAITING_FOR_COURSE = set()
-
-# User session tracking ke liye
 USER_STATE = {}
+
+# Background Tracking Variables
+LAST_SHEET4_ROW = 0
+LAST_IGNOU_ALERT = ""
 
 # --- GOOGLE SHEETS SETUP ---
 try:
@@ -58,6 +67,83 @@ try:
 except Exception as e:
     print(f"Google Sheets Connection Error: {e}")
 
+# ==========================================
+# 🚀 BACKGROUND AUTO-TASKS (YOUTUBE & IGNOU)
+# ==========================================
+def background_auto_tasks():
+    global LAST_SHEET4_ROW, LAST_IGNOU_ALERT
+    while True:
+        try:
+            # 1. AUTO YOUTUBE POSTER (Har 15 minute mein check karega)
+            records_4 = sheet4.get_all_values()
+            current_rows = len(records_4)
+            
+            # Agar bot pehli baar chalu hua hai, toh purane records yaad kar lega (post nahi karega)
+            if LAST_SHEET4_ROW == 0:
+                LAST_SHEET4_ROW = current_rows
+            
+            # Agar naya row add hua hai
+            elif current_rows > LAST_SHEET4_ROW:
+                for i in range(LAST_SHEET4_ROW, current_rows):
+                    row = records_4[i]
+                    if len(row) > 3 and row[3].strip() != "":
+                        subject_code = str(row[0]).strip().upper()
+                        yt_link = str(row[3]).strip()
+                        
+                        yt_msg = (
+                            "🚨 🆕 <b>New Solved Assignment Uploaded!</b> 🆕 🚨\n\n"
+                            f"📖 <b>Subject Code:</b> <code>{subject_code}</code>\n\n"
+                            "Aapka solved assignment hamare YouTube channel par aa gaya hai. Aap video dekh kar apna assignment aasani se aur bilkul free taiyar kar sakte hain!\n\n"
+                            f"📺 <b>Watch Video Here:</b>\n👉 {yt_link}\n\n"
+                            "💡 <i>Kripya video ko Like karein, Channel ko Subscribe karein, aur apna next Subject Code Comment box mein zaroor likhein!</i>"
+                        )
+                        markup = InlineKeyboardMarkup()
+                        markup.add(InlineKeyboardButton("📺 Watch & Write Now", url=yt_link))
+                        bot.send_message(AUTO_POST_GROUP, yt_msg, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=False)
+                LAST_SHEET4_ROW = current_rows
+
+            # 2. AUTO IGNOU ALERTS SCRAPER
+            try:
+                # Basic scraper for IGNOU announcements
+                headers = {'User-Agent': 'Mozilla/5.0'}
+                response = requests.get("http://www.ignou.ac.in/ignou/bulletinboard/announcements/latest/1", headers=headers, timeout=10)
+                soup = BeautifulSoup(response.text, 'html.parser')
+                
+                # Yeh tag structure IGNOU ke announcements box ko dhundhta hai
+                first_alert = soup.find('div', class_='usercontent').find('a')
+                if first_alert:
+                    alert_text = first_alert.text.strip()
+                    alert_link = first_alert['href']
+                    if not alert_link.startswith("http"):
+                        alert_link = "http://www.ignou.ac.in" + alert_link
+
+                    if LAST_IGNOU_ALERT == "":
+                        LAST_IGNOU_ALERT = alert_text
+                    elif alert_text != LAST_IGNOU_ALERT:
+                        alert_msg = (
+                            "📢 <b>IGNOU LATEST OFFICIAL UPDATE</b> 📢\n\n"
+                            f"📌 <b>Update:</b> {alert_text}\n\n"
+                            "🔗 <b>Official Link:</b>\n"
+                            f"👉 <a href='{alert_link}'>Click Here for Details</a>\n\n"
+                            "<i>Stay updated with Student Help Club!</i>"
+                        )
+                        bot.send_message(AUTO_ALERT_CHANNEL, alert_msg, parse_mode='HTML', disable_web_page_preview=True)
+                        LAST_IGNOU_ALERT = alert_text
+            except Exception as e:
+                print("IGNOU Scraper Error:", e)
+
+        except Exception as e:
+            print("Background Task Error:", e)
+            
+        # 30 minute tak wait karega, phir dobara check karega
+        time.sleep(1800) 
+
+# Start background thread
+bg_thread = threading.Thread(target=background_auto_tasks, daemon=True)
+bg_thread.start()
+# ==========================================
+
+
 def save_user(message, mobile="N/A"):
     try:
         user_id = str(message.from_user.id)
@@ -66,7 +152,7 @@ def save_user(message, mobile="N/A"):
             name = message.from_user.first_name or "N/A"
             username = message.from_user.username or "N/A"
             users_sheet.append_row([user_id, name, username, mobile])
-    except Exception as e:
+    except Exception:
         pass
 
 def check_membership(user_id):
@@ -80,7 +166,6 @@ def check_membership(user_id):
     return True
 
 def get_main_menu():
-    """Main menu with clean 2-column layout (No AI)"""
     markup = InlineKeyboardMarkup(row_width=2)
     markup.add(
         InlineKeyboardButton("🔍 Check Result", callback_data="start_check_result"),
@@ -259,7 +344,6 @@ def is_admin(chat_id, user_id):
     except:
         return False
 
-# Smart Search function for perfect matching
 def clean_string(text):
     return re.sub(r'[^A-Z0-9]', '', str(text).upper())
 
@@ -453,7 +537,6 @@ def continuous_check(message):
         if not check_membership(user_id):
              send_join_message(message.chat.id)
         else:
-            # Handle Photo Uploads (Payment Screenshots)
             if message.content_type == 'photo':
                 if ADMIN_ID:
                     if user_id in USER_STATE and 'raw_courses' in USER_STATE[user_id]:
@@ -484,7 +567,6 @@ def continuous_check(message):
                     bot.reply_to(message, "⚠️ Kripya pehle Menu se course select karein aur phir screenshot bhejein.", reply_markup=get_back_button())
                 return
 
-            # Handle Text Inputs
             if message.content_type == 'text' and not message.text.startswith('/'):
                 
                 if user_id in WAITING_FOR_ENROLLMENT:
