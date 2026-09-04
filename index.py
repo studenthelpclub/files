@@ -15,7 +15,7 @@ from selenium.webdriver.support import expected_conditions as EC
 # Environment se tokens uthana
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GOOGLE_CREDENTIALS_JSON = os.environ.get("GOOGLE_CREDENTIALS")
-ADMIN_ID = 12348405133  # Aapka Admin Telegram ID
+ADMIN_ID = 1238405133  # Aapka Admin Telegram ID
 
 if not TOKEN:
     raise ValueError("TELEGRAM_TOKEN environment variable is not set!")
