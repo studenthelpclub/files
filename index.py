@@ -80,7 +80,7 @@ def check_membership(user_id):
     return True
 
 def get_main_menu():
-    """Main menu with 2-column layout"""
+    """Main menu with clean 2-column layout"""
     markup = InlineKeyboardMarkup(row_width=2)
     markup.add(
         InlineKeyboardButton("🔍 Check Result", callback_data="start_check_result"),
@@ -93,7 +93,6 @@ def get_main_menu():
     return markup
 
 def get_back_button():
-    """Helper for Back Button"""
     markup = InlineKeyboardMarkup(row_width=1)
     markup.add(InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main"))
     return markup
@@ -144,15 +143,12 @@ def send_welcome(message):
 def verify_callback(call):
     user_id = call.from_user.id
     save_user(call.message)
-    
     if check_membership(user_id):
         try:
             bot.delete_message(call.message.chat.id, call.message.message_id)
         except Exception:
             pass 
-            
-        success_msg = "✅ <b>Verification Successful!</b>\n\nDhanyawad! Ab aap verified member hain. 🎉\n👇 <i>Apni service select karein:</i>"
-        bot.send_message(call.message.chat.id, success_msg, parse_mode='HTML', reply_markup=get_main_menu())
+        bot.send_message(call.message.chat.id, "✅ <b>Verification Successful!</b>\n\nDhanyawad! Ab aap verified member hain. 🎉\n👇 <i>Apni service select karein:</i>", parse_mode='HTML', reply_markup=get_main_menu())
     else:
         bot.answer_callback_query(call.id, "❌ Kripya pehle dono channels join karein!", show_alert=True)
 
@@ -263,12 +259,15 @@ def is_admin(chat_id, user_id):
     except:
         return False
 
-# Master Callback Handler
-@bot.callback_query_handler(func=lambda call: call.data.startswith("set_med_") or call.data in ["choice_paid", "choice_free", "payment_done", "admin_verify"])
+# Smart Search function for perfect matching
+def clean_string(text):
+    return re.sub(r'[^A-Z0-9]', '', str(text).upper())
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("set_med_") or call.data in ["choice_paid", "choice_free", "admin_verify"])
 def handle_flow(call):
     user_id = call.message.chat.id
     
-    # --- ADMIN VERIFICATION LOGIC (STATELESS) ---
+    # --- ADMIN VERIFICATION LOGIC ---
     if call.data == "admin_verify":
         if call.from_user.id != ADMIN_ID:
             bot.answer_callback_query(call.id, "❌ Sirf admin ke liye!", show_alert=True)
@@ -279,10 +278,9 @@ def handle_flow(call):
             bot.answer_callback_query(call.id, "❌ Error: Caption missing!", show_alert=True)
             return
             
-        # Parse data from Admin's photo caption directly!
         user_id_match = re.search(r"UserID:\s*(\d+)", caption)
         courses_match = re.search(r"Courses:\s*(.+)", caption)
-        medium_match = re.search(r"Medium:\s*(HINDI|ENGLISH)", caption)
+        medium_match = re.search(r"Medium:\s*(HINDI|ENGLISH|N/A)", caption, re.IGNORECASE)
         
         if not (user_id_match and courses_match and medium_match):
             bot.answer_callback_query(call.id, "❌ Error: Data not found in text!", show_alert=True)
@@ -290,7 +288,7 @@ def handle_flow(call):
             
         target_uid = int(user_id_match.group(1))
         courses_str = courses_match.group(1)
-        medium_str = medium_match.group(1)
+        medium_str = medium_match.group(1).upper()
         
         bot.answer_callback_query(call.id, "⏳ PDF Links Generate ho rahe hain...")
         
@@ -300,11 +298,10 @@ def handle_flow(call):
             pdf_links = ""
             
             for course in course_list:
-                s_term = course.replace(" ", "").replace("-", "").upper()
+                s_term = clean_string(course)
                 for row in records_sheet1:
                     if len(row) > 3:
-                        r_course = str(row[0]).replace(" ", "").replace("-", "").upper()
-                        # Default to HINDI if medium column is somehow empty
+                        r_course = clean_string(row[0])
                         r_medium = str(row[1]).strip().upper() if len(row) > 1 and str(row[1]).strip() != "" else "HINDI"
                         
                         if s_term in r_course and medium_str == r_medium:
@@ -320,7 +317,6 @@ def handle_flow(call):
                 )
                 bot.send_message(target_uid, user_delivery_msg, parse_mode='HTML', disable_web_page_preview=True)
                 
-                # Update Admin Message
                 try:
                     bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption=caption + "\n\n<b>[STATUS: VERIFIED & SENT ✅]</b>", parse_mode='HTML')
                 except Exception:
@@ -354,11 +350,11 @@ def handle_flow(call):
             found_valid = False
             
             for course_input in courses:
-                s_term = course_input.replace(" ", "").replace("-", "").upper()
+                s_term = clean_string(course_input)
                 matched = False
                 for row in records_sheet1:
                     if len(row) > 1:
-                        r_course = str(row[0]).replace(" ", "").replace("-", "").upper()
+                        r_course = clean_string(row[0])
                         r_medium = str(row[1]).strip().upper() if len(row) > 1 and str(row[1]).strip() != "" else "HINDI"
                         
                         if s_term in r_course and medium == r_medium:
@@ -378,7 +374,7 @@ def handle_flow(call):
                     InlineKeyboardButton(f"💰 Paid PDF (₹{total_price})", callback_data="choice_paid"),
                     InlineKeyboardButton("🆓 Free YouTube", callback_data="choice_free")
                 )
-                markup.add(InlineKeyboardButton("🔙 Back", callback_data="back_to_main"))
+                markup.add(InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main"))
                 
                 reply_text = (
                     f"📋 <b>Aapke Courses ki Availability ({medium}):</b>\n\n" +
@@ -396,45 +392,21 @@ def handle_flow(call):
     elif call.data == "choice_paid":
         total = order.get('total', 20)
         markup = InlineKeyboardMarkup(row_width=1)
-        markup.add(
-            InlineKeyboardButton("✅ Payment Complete (Send Screenshot)", callback_data="payment_done"),
-            InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main")
-        )
+        markup.add(InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main"))
         
         payment_caption = (
             "💳 <b>Secure Payment Gateway - Student Help Club</b>\n\n"
             f"• <b>Total Payable Amount:</b> <b>₹{total}</b>\n"
             f"• <b>UPI ID:</b> <code>{UPI_ID}</code>\n\n"
-            "📌 <i>Instructions:</i>\n"
-            "1. Upar diye gaye QR Code ko scan karein ya UPI ID par amount pay karein.\n"
-            "2. Payment successful hone ke baad <b>Screenshot</b> yahan chat mein upload karein.\n"
-            "3. Neeche diye gaye <b>'✅ Payment Complete'</b> button par click karein."
+            "📌 <b>Next Step:</b>\n"
+            "Payment successful hone ke baad apna <b>Screenshot (Photo) yahan chat mein bhejein.</b>\n"
+            "(Bot automatically aapka screenshot verification ke liye Admin ko bhej dega)."
         )
         try:
             bot.delete_message(call.message.chat.id, call.message.message_id)
         except:
             pass
         bot.send_photo(user_id, photo=QR_CODE_URL, caption=payment_caption, parse_mode='HTML', reply_markup=markup)
-        
-    elif call.data == "payment_done":
-        try:
-            bot.delete_message(call.message.chat.id, call.message.message_id)
-        except:
-            pass
-        
-        markup = InlineKeyboardMarkup(row_width=1)
-        markup.add(
-            InlineKeyboardButton("📞 Contact Admin", url=ADMIN_USERNAME_LINK),
-            InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main")
-        )
-        
-        complete_msg = (
-            "⏳ <b>Payment Verification in Progress...</b>\n\n"
-            "• Maximum Wait Time: <b>30 Minutes</b>\n"
-            "• Aapka screenshot admin ko bhej diya gaya hai. Admin dwara verify hone ke baad PDF aapke personal DM mein bhej diya jayega.\n\n"
-            "👇 Agar jaldi chahiye toh seedha admin se sampark karein:"
-        )
-        bot.send_message(user_id, complete_msg, parse_mode='HTML', reply_markup=markup)
         
     elif call.data == "choice_free":
         try:
@@ -483,33 +455,33 @@ def continuous_check(message):
         else:
             # Handle Photo Uploads (Payment Screenshots)
             if message.content_type == 'photo':
-                if ADMIN_ID and user_id in USER_STATE:
-                    order = USER_STATE[user_id]
-                    c_str = ",".join(order.get('raw_courses', []))
-                    med_str = order.get('medium', 'HINDI')
-                    
+                if ADMIN_ID:
+                    if user_id in USER_STATE and 'raw_courses' in USER_STATE[user_id]:
+                        c_str = ",".join(USER_STATE[user_id]['raw_courses'])
+                        med_str = USER_STATE[user_id].get('medium', 'HINDI')
+                    else:
+                        c_str = "N/A"
+                        med_str = "N/A"
+                        
                     try:
                         forward_caption = (
                             f"🚨 <b>New Payment Screenshot!</b>\n\n"
-                            f"👤 User Name: {message.from_user.first_name}\n"
-                            f"🆔 UserID: {user_id}\n"
-                            f"📚 Courses: {c_str}\n"
-                            f"🗣️ Medium: {med_str}\n\n"
+                            f"👤 <b>User Name:</b> {message.from_user.first_name}\n"
+                            f"🆔 <b>UserID:</b> {user_id}\n"
+                            f"📚 <b>Courses:</b> {c_str}\n"
+                            f"🗣️ <b>Medium:</b> {med_str}\n\n"
                             "Kripya payment verify karke niche diye gaye button par click karein:"
                         )
                         markup = InlineKeyboardMarkup()
                         markup.add(InlineKeyboardButton("✅ Verify & Send PDFs", callback_data="admin_verify"))
                         
-                        # Send direct photo to admin
+                        # Send photo straight to Admin
                         bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=forward_caption, parse_mode='HTML', reply_markup=markup)
-                        bot.reply_to(message, "✅ Aapka payment screenshot admin ke paas bhej diya gaya hai. Kripya PDF ka wait karein.")
+                        bot.reply_to(message, "✅ Aapka payment screenshot admin ke paas bhej diya gaya hai.\n⏳ <b>Max Wait Time: 30 Minutes.</b>\nVerification complete hote hi PDF aapko yahi mil jayega!")
                     except Exception as e:
                         bot.reply_to(message, "❌ Screenshot bhejne mein error aayi. Kripya @studenthelpclub1 par contact karein.")
-                elif user_id not in USER_STATE:
-                    bot.reply_to(message, "⚠️ Kripya pehle Menu se course select karein aur phir screenshot bhejein.", reply_markup=get_back_button())
                 return
 
-            # Handle Text Inputs
             if message.content_type == 'text' and not message.text.startswith('/'):
                 if user_id in WAITING_FOR_ENROLLMENT:
                     WAITING_FOR_ENROLLMENT.remove(user_id)
@@ -522,7 +494,6 @@ def continuous_check(message):
                     raw_input_text = message.text.strip().upper()
                     courses = [c.strip() for c in raw_input_text.split(',')]
                     
-                    # Store to memory
                     USER_STATE[user_id] = {'raw_courses': courses}
                     
                     markup = InlineKeyboardMarkup(row_width=2)
