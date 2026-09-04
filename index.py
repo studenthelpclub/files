@@ -2,7 +2,6 @@ import os
 import time
 import json
 import re
-import requests
 import telebot
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -16,7 +15,6 @@ from selenium.webdriver.support import expected_conditions as EC
 
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GOOGLE_CREDENTIALS_JSON = os.environ.get("GOOGLE_CREDENTIALS")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") # AI ke liye Naya API Key
 ADMIN_ID = 1238405133  # Aapka Admin Telegram ID
 
 if not TOKEN:
@@ -36,11 +34,10 @@ UTILITY_TOOLS = "https://shctools.in/"
 
 QR_CODE_URL = "https://raw.githubusercontent.com/studenthelpclub/files/main/qrcode.jpg"
 UPI_ID = "studenthelpclub@naviaxis"
-PRICE_PER_PDF = 20  
+PRICE_PER_PDF = 20  # Per PDF price
 
 WAITING_FOR_ENROLLMENT = set()
 WAITING_FOR_COURSE = set()
-WAITING_FOR_AI_QUERY = set()
 
 # User session tracking ke liye
 USER_STATE = {}
@@ -60,24 +57,6 @@ try:
     sheet4 = master_doc.worksheet("Sheet4")
 except Exception as e:
     print(f"Google Sheets Connection Error: {e}")
-
-# --- AI API FUNCTION ---
-def ask_gemini_ai(query):
-    if not GEMINI_API_KEY:
-        return "❌ AI API key set nahi hai. Kripya admin se sampark karein."
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
-    headers = {'Content-Type': 'application/json'}
-    prompt = f"You are a helpful and polite educational assistant for 'Student Help Club'. Answer the following user query strictly related to IGNOU (Indira Gandhi National Open University), academics, or general student help. Answer concisely and accurately in Hinglish or Hindi. Query: {query}"
-    data = {"contents": [{"parts": [{"text": prompt}]}]}
-    try:
-        response = requests.post(url, headers=headers, json=data)
-        result = response.json()
-        if 'candidates' in result:
-            return result['candidates'][0]['content']['parts'][0]['text']
-        else:
-            return "❌ Mujhe iska jawab abhi nahi mil raha hai. Kripya apna sawal thoda clear likhein."
-    except Exception as e:
-        return "❌ Server busy hai. Kripya thodi der baad try karein."
 
 def save_user(message, mobile="N/A"):
     try:
@@ -101,15 +80,15 @@ def check_membership(user_id):
     return True
 
 def get_main_menu():
-    """Main menu with new Ask AI Button"""
+    """Main menu with clean 2-column layout (No AI)"""
     markup = InlineKeyboardMarkup(row_width=2)
     markup.add(
         InlineKeyboardButton("🔍 Check Result", callback_data="start_check_result"),
         InlineKeyboardButton("📖 Get PDF", callback_data="start_assignment"),
-        InlineKeyboardButton("🤖 Ask AI (IGNOU Help)", callback_data="start_ai_help"),
         InlineKeyboardButton("📚 Assignments Group", url=FINAL_GROUP_LINK),
         InlineKeyboardButton("🌐 Official Website", url=ASSIGNMENT_WEBSITE),
-        InlineKeyboardButton("💼 Job Updates", url=JOBS_WEBSITE)
+        InlineKeyboardButton("💼 Job Updates", url=JOBS_WEBSITE),
+        InlineKeyboardButton("🛠️ Utility Tools", url=UTILITY_TOOLS)
     )
     return markup
 
@@ -123,7 +102,6 @@ def handle_back(call):
     user_id = call.from_user.id
     WAITING_FOR_ENROLLMENT.discard(user_id)
     WAITING_FOR_COURSE.discard(user_id)
-    WAITING_FOR_AI_QUERY.discard(user_id)
     if user_id in USER_STATE:
         del USER_STATE[user_id]
         
@@ -173,25 +151,6 @@ def verify_callback(call):
         bot.send_message(call.message.chat.id, "✅ <b>Verification Successful!</b>\n\nDhanyawad! Ab aap verified member hain. 🎉\n👇 <i>Apni service select karein:</i>", parse_mode='HTML', reply_markup=get_main_menu())
     else:
         bot.answer_callback_query(call.id, "❌ Kripya pehle dono channels join karein!", show_alert=True)
-
-@bot.callback_query_handler(func=lambda call: call.data == "start_ai_help")
-def prompt_ai_help(call):
-    user_id = call.from_user.id
-    if not check_membership(user_id):
-        bot.answer_callback_query(call.id, "❌ Kripya channels join karein!", show_alert=True)
-        return
-    WAITING_FOR_AI_QUERY.add(user_id)
-    try:
-        bot.delete_message(call.message.chat.id, call.message.message_id)
-    except:
-        pass
-    ai_msg = (
-        "🤖 <b>IGNOU AI Assistant</b>\n\n"
-        "Aap IGNOU se related apna koi bhi sawal yahan type karke bhejein.\n"
-        "(Jaise: 'June exam form ki last date kya hai?' ya 'BCOC 132 kya hai?')\n\n"
-        "<i>Note: AI ko reply fetch karne mein thoda samay lag sakta hai.</i>"
-    )
-    bot.send_message(call.message.chat.id, ai_msg, parse_mode='HTML', reply_markup=get_back_button())
 
 @bot.callback_query_handler(func=lambda call: call.data == "start_check_result")
 def prompt_enrollment(call):
@@ -300,6 +259,7 @@ def is_admin(chat_id, user_id):
     except:
         return False
 
+# Smart Search function for perfect matching
 def clean_string(text):
     return re.sub(r'[^A-Z0-9]', '', str(text).upper())
 
@@ -355,7 +315,6 @@ def handle_flow(call):
                     f"{pdf_links}"
                     "📥 Aap in links par click karke apne PDFs download kar sakte hain. Thank you for using Student Help Club!"
                 )
-                # ADDED BACK BUTTON HERE
                 bot.send_message(target_uid, user_delivery_msg, parse_mode='HTML', disable_web_page_preview=True, reply_markup=get_back_button())
                 
                 try:
@@ -494,12 +453,16 @@ def continuous_check(message):
         if not check_membership(user_id):
              send_join_message(message.chat.id)
         else:
+            # Handle Photo Uploads (Payment Screenshots)
             if message.content_type == 'photo':
-                if ADMIN_ID and user_id in USER_STATE:
-                    order = USER_STATE[user_id]
-                    c_str = ",".join(order.get('raw_courses', []))
-                    med_str = order.get('medium', 'HINDI')
-                    
+                if ADMIN_ID:
+                    if user_id in USER_STATE and 'raw_courses' in USER_STATE[user_id]:
+                        c_str = ",".join(USER_STATE[user_id]['raw_courses'])
+                        med_str = USER_STATE[user_id].get('medium', 'HINDI')
+                    else:
+                        c_str = "N/A"
+                        med_str = "N/A"
+                        
                     try:
                         forward_caption = (
                             f"🚨 <b>New Payment Screenshot!</b>\n\n"
@@ -514,34 +477,17 @@ def continuous_check(message):
                         
                         bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=forward_caption, parse_mode='HTML', reply_markup=markup)
                         
-                        # FIXED <B> TAG ISSUE HERE
-                        bot.send_message(message.chat.id, "✅ Aapka payment screenshot admin ke paas bhej diya gaya hai.\n⏳ <b>Max Wait Time: 30 Minutes.</b>\nVerification complete hote hi PDF aapko yahi mil jayega!", parse_mode='HTML', reply_to_message_id=message.message_id)
+                        bot.send_message(message.chat.id, "✅ Aapka payment screenshot admin ke paas bhej diya gaya hai.\n⏳ <b>Max Wait Time: 30 Minutes.</b>\nVerification complete hote hi PDF aapko yahi mil jayega!", parse_mode='HTML', reply_to_message_id=message.message_id, reply_markup=get_back_button())
                     except Exception as e:
                         bot.reply_to(message, "❌ Screenshot bhejne mein error aayi. Kripya @studenthelpclub1 par contact karein.")
                 elif user_id not in USER_STATE:
                     bot.reply_to(message, "⚠️ Kripya pehle Menu se course select karein aur phir screenshot bhejein.", reply_markup=get_back_button())
                 return
 
+            # Handle Text Inputs
             if message.content_type == 'text' and not message.text.startswith('/'):
                 
-                # --- AI QUERY LOGIC ---
-                if user_id in WAITING_FOR_AI_QUERY:
-                    WAITING_FOR_AI_QUERY.remove(user_id)
-                    query = message.text.strip()
-                    msg = bot.send_message(message.chat.id, "⏳ <i>AI answer dhoondh raha hai... kripya prateeksha karein.</i>", parse_mode='HTML')
-                    
-                    answer = ask_gemini_ai(query)
-                    try:
-                        bot.delete_message(message.chat.id, msg.message_id)
-                    except:
-                        pass
-                        
-                    ai_reply = f"🤖 <b>AI Assistant:</b>\n\n{answer}"
-                    # Avoiding HTML parse_mode for AI response to prevent errors if AI uses unexpected brackets, 
-                    # but since we want bold header, we send it simply without parsing markdown issues.
-                    bot.send_message(message.chat.id, ai_reply, reply_markup=get_back_button())
-                
-                elif user_id in WAITING_FOR_ENROLLMENT:
+                if user_id in WAITING_FOR_ENROLLMENT:
                     WAITING_FOR_ENROLLMENT.remove(user_id)
                     enr_number = message.text.strip()
                     bot.send_message(message.chat.id, f"🔍 <b>Enrollment Number ({enr_number}) received!</b>\n\nSystem result fetch kar raha hai, kripya prateeksha karein...", parse_mode='HTML')
