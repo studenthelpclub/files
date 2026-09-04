@@ -32,7 +32,7 @@ JOBS_WEBSITE = "https://jobs.studenthelpclub.in"
 UTILITY_TOOLS = "https://shctools.in/"
 
 # Aapka QR Code Direct Image Link
-QR_CODE_URL = "https://i.ibb.co/zVpDBTCf/qr.jpg"
+QR_CODE_URL = "https://github.com/studenthelpclub/files/blob/main/qrcode.jpg?raw=true"
 
 WAITING_FOR_ENROLLMENT = set()
 WAITING_FOR_COURSE = set()
