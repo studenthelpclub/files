@@ -33,10 +33,10 @@ UTILITY_TOOLS = "https://shctools.in/"
 
 QR_CODE_URL = "https://raw.githubusercontent.com/studenthelpclub/files/main/qrcode.jpg"
 UPI_ID = "studenthelpclub@naviaxis"
+PRICE_PER_PDF = 20  # Per PDF price
 
 WAITING_FOR_ENROLLMENT = set()
 WAITING_FOR_COURSE = set()
-WAITING_FOR_MEDIUM = {}  # Temporary store user choice: {user_id: search_terms_list}
 
 # --- GOOGLE SHEETS SETUP ---
 try:
@@ -76,14 +76,14 @@ def check_membership(user_id):
     return True
 
 def get_main_menu():
-    markup = InlineKeyboardMarkup(row_width=1)
-    btn_result = InlineKeyboardButton("🔍 Check IGNOU Result", callback_data="start_check_result")
-    btn_assignment = InlineKeyboardButton("📖 Get Solved Assignment PDF", callback_data="start_assignment")
-    btn_group = InlineKeyboardButton("📚 Join Solved Assignments Group", url=FINAL_GROUP_LINK)
-    btn_website = InlineKeyboardButton("🌐 Visit Official Website", url=ASSIGNMENT_WEBSITE)
-    btn_jobs = InlineKeyboardButton("💼 Latest Job Updates", url=JOBS_WEBSITE)
-    btn_tools = InlineKeyboardButton("🛠️ Student Utility Tools", url=UTILITY_TOOLS)
-    markup.add(btn_result, btn_assignment, btn_group, btn_website, btn_jobs, btn_tools)
+    """Main menu with 2-column layout and cleaned buttons as requested"""
+    markup = InlineKeyboardMarkup(row_width=2)
+    btn_result = InlineKeyboardButton("🔍 Check Result", callback_data="start_check_result")
+    btn_assignment = InlineKeyboardButton("📖 Get PDF", callback_data="start_assignment")
+    btn_group = InlineKeyboardButton("📚 Assignments Group", url=FINAL_GROUP_LINK)
+    btn_website = InlineKeyboardButton("🌐 Official Website", url=ASSIGNMENT_WEBSITE)
+    
+    markup.add(btn_result, btn_assignment, btn_group, btn_website)
     return markup
 
 def send_join_message(chat_id):
@@ -249,38 +249,83 @@ def is_admin(chat_id, user_id):
     except:
         return False
 
-# Paid / Free Choice Handler
-@bot.callback_query_handler(func=lambda call: call.data.startswith("paid_") or call.data.startswith("free_") or call.data == "payment_done")
+# Paid / Free Choice Handler & Admin Verification Callback
+@bot.callback_query_handler(func=lambda call: call.data.startswith("paid_") or call.data.startswith("free_") or call.data.startswith("payment_done_") or call.data.startswith("verify_user_"))
 def handle_assignment_choice(call):
-    if call.data == "payment_done":
-        bot.answer_message = "Payment Complete clicked"
-        markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("📞 Contact Admin for Fast Delivery", url=ADMIN_USERNAME_LINK))
+    if call.data.startswith("payment_done_"):
+        search_terms = call.data.replace("payment_done_", "")
+        try:
+            bot.delete_message(call.message.chat.id, call.message.message_id)
+        except Exception:
+            pass
         
         complete_msg = (
             "⏳ <b>Payment Verification in Progress...</b>\n\n"
             "• Maximum Wait Time: <b>30 Minutes</b>\n"
-            "• Aapka screenshot admin ko bhej diya gaya hai. Verify hone ke baad PDF aapke personal DM mein bhej diya jayega.\n\n"
+            "• Aapka screenshot admin ko bhej diya gaya hai. Admin dwara verify hone ke baad PDF aapke personal DM mein bhej diya jayega.\n\n"
             "👇 Agar jaldi chahiye toh seedha admin se sampark karein:"
         )
+        markup = InlineKeyboardMarkup()
+        markup.add(InlineKeyboardButton("📞 Contact Admin", url=ADMIN_USERNAME_LINK))
         bot.send_message(call.message.chat.id, complete_msg, parse_mode='HTML', reply_markup=markup)
+        return
+
+    # Admin verification action when admin clicks "Verify & Send PDFs"
+    if call.data.startswith("verify_user_"):
+        if call.from_user.id != ADMIN_ID:
+            bot.answer_callback_query(call.id, "❌ Yeh action sirf admin ke liye hai!", show_alert=True)
+            return
+            
+        target_user_id, search_terms = call.data.replace("verify_user_", "", 1).split("_", 1)
+        
+        try:
+            records_sheet1 = sheet1.get_all_values()
+            terms = search_terms.split(",")
+            pdf_links_text = ""
+            
+            for term in terms:
+                for row in records_sheet1:
+                    if len(row) > 3:
+                        c_name = str(row[0]).upper().replace(" ", "").replace("-", "")
+                        if term.strip() in c_name:
+                            pdf_links_text += f"• <b>{row[0]}</b>: {row[3]}\n"
+                            break
+            
+            if pdf_links_text:
+                user_delivery_msg = (
+                    "🎉 <b>Payment Verified Successfully!</b>\n\n"
+                    "Aapke requested assignments ke Google Drive links niche diye gaye hain:\n\n"
+                    f"{pdf_links_text}\n"
+                    "📥 Aap in links par click karke apne PDFs download kar sakte hain. Thank you for using Student Help Club!"
+                )
+                bot.send_message(int(target_user_id), user_delivery_msg, parse_mode='HTML', disable_web_page_preview=False)
+                bot.answer_callback_query(call.id, "✅ Payment Verified & PDFs Sent to User!")
+                bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption=call.message.caption + "\n\n<b>[STATUS: VERIFIED & SENT ✅]</b>", parse_mode='HTML')
+            else:
+                bot.answer_callback_query(call.id, "❌ Error: Sheet mein links nahi mile!", show_alert=True)
+        except Exception as e:
+            bot.answer_callback_query(call.id, f"❌ Error: {e}", show_alert=True)
         return
 
     data_parts = call.data.split('_', 1)
     choice = data_parts[0]
-    search_term = data_parts[1]
+    search_terms = data_parts[1]
     
     if choice == "paid":
         try:
             markup = InlineKeyboardMarkup()
-            markup.add(InlineKeyboardButton("✅ Payment Complete (Send Screenshot)", callback_data="payment_done"))
+            markup.add(InlineKeyboardButton("✅ Payment Complete (Send Screenshot)", callback_data=f"payment_done_{search_terms}"))
+            
+            terms_count = len(search_terms.split(","))
+            total_price = terms_count * PRICE_PER_PDF
             
             payment_caption = (
                 "💳 <b>Secure Payment Gateway - Student Help Club</b>\n\n"
-                f"• <b>Assignment PDF Price:</b> <b>₹20</b> (Special Discounted Rate)\n"
+                f"• <b>Total PDFs:</b> {terms_count}\n"
+                f"• <b>Total Payable Amount:</b> <b>₹{total_price}</b> (@₹20 per PDF)\n"
                 f"• <b>UPI ID:</b> <code>{UPI_ID}</code>\n\n"
                 "📌 <i>Instructions:</i>\n"
-                "1. Upar diye gaye QR Code ko scan karein ya UPI ID par <b>₹20</b> pay karein.\n"
+                "1. Upar diye gaye QR Code ko scan karein ya UPI ID par amount pay karein.\n"
                 "2. Payment successful hone ke baad <b>Screenshot</b> yahan chat mein upload karein.\n"
                 "3. Neeche diye gaye <b>'✅ Payment Complete'</b> button par click karein."
             )
@@ -298,7 +343,7 @@ def handle_assignment_choice(call):
             fallback_text = (
                 "💳 <b>Secure Payment Gateway</b>\n\n"
                 f"• <b>UPI ID:</b> <code>{UPI_ID}</code>\n\n"
-                "⚠️ Image load hone mein samasya aayi. Kripya upar di gayi UPI ID par ₹20 pay karein aur screenshot bhejein."
+                "⚠️ Image load hone mein samasya aayi. Kripya upar di gayi UPI ID par payment karein aur screenshot bhejein."
             )
             bot.send_message(call.message.chat.id, fallback_text, parse_mode='HTML', reply_markup=markup)
         
@@ -309,7 +354,7 @@ def handle_assignment_choice(call):
             for row in records_sheet4:
                 if len(row) > 3:
                     sheet4_course_name = str(row[0]).upper().replace(" ", "").replace("-", "")
-                    if search_term in sheet4_course_name:
+                    if search_terms in sheet4_course_name:
                         if row[3].strip() != "":
                             yt_link = row[3]
                         break
@@ -328,50 +373,6 @@ def handle_assignment_choice(call):
             "👇 <i>Neeche diye gaye buttons par click karke group join karein ya video dekhein:</i>"
         )
         bot.send_message(call.message.chat.id, reply, parse_mode='HTML', reply_markup=markup)
-
-# Medium selection handler for courses
-@bot.callback_query_handler(func=lambda call: call.data.startswith("med_"))
-def handle_medium_selection(call):
-    _, medium, search_term = call.data.split('_', 2)
-    user_id = call.message.chat.id
-    
-    try:
-        records_sheet1 = sheet1.get_all_values()
-        found = False
-        pdf_link = ""
-        exact_name = ""
-        
-        for row in records_sheet1:
-            if len(row) > 2:
-                row_course = str(row[0]).upper().replace(" ", "").replace("-", "")
-                row_medium = str(row[1]).upper()
-                if search_term in row_course and medium in row_medium:
-                    exact_name = row[0]
-                    pdf_link = row[3] if len(row) > 3 else ""
-                    found = True
-                    break
-        
-        if found:
-            markup = InlineKeyboardMarkup(row_width=2)
-            markup.add(
-                InlineKeyboardButton("💰 Paid PDF (₹20)", callback_data=f"paid_{search_term}"),
-                InlineKeyboardButton("🆓 Free YouTube", callback_data=f"free_{search_term}")
-            )
-            bot.send_message(
-                user_id,
-                f"✅ <b>Available Course Found:</b> <code>{exact_name}</code> ({medium})\n\n"
-                "Aap iska paid ya free option chun sakte hain:",
-                parse_mode='HTML',
-                reply_markup=markup
-            )
-        else:
-            bot.send_message(
-                user_id,
-                f"❌ Maaf kijiyega, is course ka <b>{medium}</b> medium mein PDF abhi available nahi hai.",
-                parse_mode='HTML'
-            )
-    except Exception as e:
-        bot.send_message(user_id, f"❌ Error checking database: {e}")
 
 @bot.message_handler(func=lambda message: True, content_types=['text', 'audio', 'document', 'photo', 'sticker', 'video', 'video_note', 'voice', 'location', 'contact'])
 def continuous_check(message):
@@ -398,21 +399,26 @@ def continuous_check(message):
         if not check_membership(user_id):
              send_join_message(message.chat.id)
         else:
-            # Agar user ne payment screenshot (photo) bheja hai, toh use Admin ko forward karo
+            # Agar user ne payment screenshot bheja hai, toh Admin ko forward karo with Verify Button
             if message.content_type == 'photo':
                 if ADMIN_ID:
                     try:
+                        # Hum pichle text ya state se search terms nikal sakte hain ya default bhej sakte hain
                         forward_caption = (
                             f"🚨 <b>New Payment Screenshot Received!</b>\n\n"
                             f"• User Name: {message.from_user.first_name}\n"
                             f"• Username: @{message.from_user.username or 'N/A'}\n"
                             f"• User ID: <code>{user_id}</code>\n\n"
-                            "Kripya payment verify karke user ko PDF bhejein."
+                            "Kripya payment verify karke niche diye gaye button par click karein:"
                         )
-                        bot.forward_message(ADMIN_ID, message.chat.id, message.message_id)
-                        bot.send_message(ADMIN_ID, forward_caption, parse_mode='HTML')
+                        markup = InlineKeyboardMarkup()
+                        # Default check ke liye sabhi matched courses bhej sakte hain ya generic verify
+                        markup.add(InlineKeyboardButton("✅ Verify & Send PDFs", callback_data=f"verify_user_{user_id}_ALL"))
                         
-                        bot.reply_to(message, "✅ Aapka payment screenshot admin ke paas bhej diya gaya hai. Kripya 30 minute tak prateeksha karein, verification ke baad PDF mil jayega.")
+                        bot.forward_message(ADMIN_ID, message.chat.id, message.message_id)
+                        bot.send_message(ADMIN_ID, forward_caption, parse_mode='HTML', reply_markup=markup)
+                        
+                        bot.reply_to(message, "✅ Aapka payment screenshot admin ke paas bhej diya gaya hai.\n⏳ <b>Max Wait Time: 30 Minutes.</b>\nVerification complete hote hi PDF aapko mil jayega!")
                     except Exception as e:
                         bot.reply_to(message, "❌ Screenshot forward karne mein error aayi. Kripya @studenthelpclub1 par contact karein.")
                 return
@@ -433,7 +439,8 @@ def continuous_check(message):
                     
                     try:
                         records_sheet1 = sheet1.get_all_values()
-                        found_courses = []
+                        found_lines = []
+                        search_terms_list = []
                         
                         for course_input in courses:
                             search_term = course_input.replace(" ", "").replace("-", "")
@@ -441,23 +448,27 @@ def continuous_check(message):
                                 if len(row) > 0:
                                     sheet_course_name = str(row[0]).upper().replace(" ", "").replace("-", "")
                                     if search_term in sheet_course_name:
-                                        found_courses.append((course_input, search_term, row[0], row[1] if len(row) > 1 else "Hindi"))
+                                        found_lines.append(f"• <b>{row[0]}</b> (Medium: {row[1] if len(row) > 1 else 'Hindi'})")
+                                        search_terms_list.append(search_term)
                                         break
                         
-                        if found_courses:
-                            for orig_input, search_term, exact_name, medium in found_courses:
-                                markup = InlineKeyboardMarkup(row_width=2)
-                                markup.add(
-                                    InlineKeyboardButton("💰 Paid PDF (₹20)", callback_data=f"paid_{search_term}"),
-                                    InlineKeyboardButton("🆓 Free YouTube", callback_data=f"free_{search_term}")
-                                )
-                                
-                                reply_text = (
-                                    f"✅ <b>Match Found:</b> <code>{exact_name}</code>\n"
-                                    f"• Medium: {medium}\n\n"
-                                    "Aap iska paid ya free option chun sakte hain:"
-                                )
-                                bot.send_message(message.chat.id, reply_text, parse_mode='HTML', reply_markup=markup)
+                        if found_lines:
+                            combined_search_terms = ",".join(search_terms_list)
+                            total_price = len(search_terms_list) * PRICE_PER_PDF
+                            
+                            markup = InlineKeyboardMarkup(row_width=2)
+                            markup.add(
+                                InlineKeyboardButton(f"💰 Paid PDF (₹{total_price})", callback_data=f"paid_{combined_search_terms}"),
+                                InlineKeyboardButton("🆓 Free YouTube", callback_data=f"free_{combined_search_terms}")
+                            )
+                            
+                            reply_text = (
+                                "✅ <b>Aapke Dwara Maange Gaye Courses:</b>\n\n" +
+                                "\n".join(found_lines) + "\n\n" +
+                                f"💵 <b>Total Payable Amount:</b> ₹{total_price} (@₹20 per PDF)\n\n"
+                                "👇 <i>Kripya apna pasandeeda option select karein:</i>"
+                            )
+                            bot.send_message(message.chat.id, reply_text, parse_mode='HTML', reply_markup=markup)
                         else:
                             bot.send_message(message.chat.id, f"❌ Maaf kijiyega, aapke dwara diye gaye course(s) ka assignment abhi database mein available nahi hai.", parse_mode='HTML')
                     except Exception as e:
