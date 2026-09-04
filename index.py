@@ -67,6 +67,7 @@ try:
 except Exception as e:
     print(f"Google Sheets Connection Error: {e}")
 
+
 # ==========================================
 # 🚀 BACKGROUND AUTO-TASKS (YOUTUBE & IGNOU)
 # ==========================================
@@ -74,15 +75,12 @@ def background_auto_tasks():
     global LAST_SHEET4_ROW, LAST_IGNOU_ALERT
     while True:
         try:
-            # 1. AUTO YOUTUBE POSTER (Har 15 minute mein check karega)
+            # 1. AUTO YOUTUBE POSTER
             records_4 = sheet4.get_all_values()
             current_rows = len(records_4)
             
-            # Agar bot pehli baar chalu hua hai, toh purane records yaad kar lega (post nahi karega)
             if LAST_SHEET4_ROW == 0:
                 LAST_SHEET4_ROW = current_rows
-            
-            # Agar naya row add hua hai
             elif current_rows > LAST_SHEET4_ROW:
                 for i in range(LAST_SHEET4_ROW, current_rows):
                     row = records_4[i]
@@ -104,12 +102,10 @@ def background_auto_tasks():
 
             # 2. AUTO IGNOU ALERTS SCRAPER
             try:
-                # Basic scraper for IGNOU announcements
                 headers = {'User-Agent': 'Mozilla/5.0'}
                 response = requests.get("http://www.ignou.ac.in/ignou/bulletinboard/announcements/latest/1", headers=headers, timeout=10)
                 soup = BeautifulSoup(response.text, 'html.parser')
                 
-                # Yeh tag structure IGNOU ke announcements box ko dhundhta hai
                 first_alert = soup.find('div', class_='usercontent').find('a')
                 if first_alert:
                     alert_text = first_alert.text.strip()
@@ -129,16 +125,13 @@ def background_auto_tasks():
                         )
                         bot.send_message(AUTO_ALERT_CHANNEL, alert_msg, parse_mode='HTML', disable_web_page_preview=True)
                         LAST_IGNOU_ALERT = alert_text
-            except Exception as e:
-                print("IGNOU Scraper Error:", e)
-
-        except Exception as e:
-            print("Background Task Error:", e)
+            except Exception:
+                pass
+        except Exception:
+            pass
             
-        # 30 minute tak wait karega, phir dobara check karega
-        time.sleep(1800) 
+        time.sleep(1800) # 30 mins wait
 
-# Start background thread
 bg_thread = threading.Thread(target=background_auto_tasks, daemon=True)
 bg_thread.start()
 # ==========================================
@@ -268,30 +261,6 @@ def prompt_course_code(call):
     )
     bot.send_message(call.message.chat.id, instruction_msg, parse_mode='HTML', reply_markup=get_back_button())
 
-@bot.message_handler(commands=['broadcast'])
-def broadcast_message(message):
-    if message.from_user.id != ADMIN_ID:
-        bot.reply_to(message, "❌ Aapko yeh command use karne ki permission nahi hai.")
-        return
-    msg_to_broadcast = message.text.replace("/broadcast", "").strip()
-    if not msg_to_broadcast:
-        bot.reply_to(message, "⚠️ Kripya message likhein. Format: `/broadcast [Message]`")
-        return
-    try:
-        users = users_sheet.col_values(1)
-        success, fail = 0, 0
-        bot.reply_to(message, "📢 Broadcast started...")
-        for uid in users:
-            if uid.isdigit():
-                try:
-                    bot.send_message(chat_id=int(uid), text=msg_to_broadcast, parse_mode='HTML')
-                    success += 1
-                    time.sleep(0.1)
-                except Exception:
-                    fail += 1
-        bot.send_message(message.chat.id, f"✅ <b>Broadcast Report:</b>\nSent: {success}\nFailed: {fail}", parse_mode='HTML')
-    except Exception as e:
-        bot.reply_to(message, f"❌ Broadcast Error: {e}")
 
 def fetch_ignou_result(enr_no, chat_id):
     options = webdriver.ChromeOptions()
@@ -330,7 +299,13 @@ def fetch_ignou_result(enr_no, chat_id):
     driver.quit()
 
     if success and os.path.exists(file_name):
-        caption_text = f"✅ <b>Result for Enrollment:</b> <code>{enr_no}</code>\n\n🚀 <i>Powered by Student Help Club</i>"
+        # 🔥 RESULT BRANDING FIXED HERE 🔥
+        caption_text = (
+            f"✅ <b>Result for Enrollment:</b> <code>{enr_no}</code>\n\n"
+            f"🚀 <i>Powered by:</i> <b>Student Help Club</b>\n"
+            f"📢 <b>Join Channel:</b> @studenthelpclub\n"
+            f"🌐 <b>Website:</b> studenthelpclub.in"
+        )
         with open(file_name, 'rb') as photo:
             bot.send_photo(chat_id, photo=photo, caption=caption_text, parse_mode="HTML")
         os.remove(file_name)
@@ -347,10 +322,48 @@ def is_admin(chat_id, user_id):
 def clean_string(text):
     return re.sub(r'[^A-Z0-9]', '', str(text).upper())
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("set_med_") or call.data in ["choice_paid", "choice_free", "admin_verify"])
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("set_med_") or call.data in ["choice_paid", "choice_free", "admin_verify", "admin_reject"])
 def handle_flow(call):
     user_id = call.message.chat.id
     
+    # 🔥 ADMIN REJECT LOGIC FIXED HERE 🔥
+    if call.data == "admin_reject":
+        if call.from_user.id != ADMIN_ID:
+            bot.answer_callback_query(call.id, "❌ Sirf admin ke liye!", show_alert=True)
+            return
+            
+        caption = call.message.caption
+        if not caption:
+            bot.answer_callback_query(call.id, "❌ Error: Caption missing!", show_alert=True)
+            return
+            
+        user_id_match = re.search(r"UserID:\s*(\d+)", caption)
+        if not user_id_match:
+            bot.answer_callback_query(call.id, "❌ Error: Data not found in text!", show_alert=True)
+            return
+            
+        target_uid = int(user_id_match.group(1))
+        
+        reject_msg = (
+            "❌ <b>Payment Verification Failed!</b>\n\n"
+            "Aapka bheja gaya screenshot <b>invalid ya fake</b> paya gaya hai. Isliye aapki PDF request cancel kar di gayi hai.\n\n"
+            "Agar aapne payment successfully kiya hai, toh kripya sahi screenshot bhejein ya admin se sampark karein:\n"
+            f"👉 <b>{ADMIN_USERNAME_LINK}</b>"
+        )
+        try:
+            bot.send_message(target_uid, reject_msg, parse_mode='HTML', disable_web_page_preview=True)
+        except:
+            pass
+            
+        try:
+            bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption=caption + "\n\n<b>[STATUS: REJECTED ❌]</b>", parse_mode='HTML')
+        except Exception:
+            pass
+            
+        bot.answer_callback_query(call.id, "❌ Payment Rejected and User Notified!")
+        return
+
     # --- ADMIN VERIFICATION LOGIC ---
     if call.data == "admin_verify":
         if call.from_user.id != ADMIN_ID:
@@ -410,6 +423,7 @@ def handle_flow(call):
         except Exception as e:
             bot.answer_callback_query(call.id, f"❌ Error: {e}", show_alert=True)
         return
+
 
     # --- USER FLOW LOGIC ---
     if user_id not in USER_STATE:
@@ -555,8 +569,12 @@ def continuous_check(message):
                             f"🗣️ <b>Medium:</b> {med_str}\n\n"
                             "Kripya payment verify karke niche diye gaye button par click karein:"
                         )
+                        # 🔥 ADMIN VERIFY AND REJECT BUTTONS ADDED HERE 🔥
                         markup = InlineKeyboardMarkup()
-                        markup.add(InlineKeyboardButton("✅ Verify & Send PDFs", callback_data="admin_verify"))
+                        markup.add(
+                            InlineKeyboardButton("✅ Verify & Send PDFs", callback_data="admin_verify"),
+                            InlineKeyboardButton("❌ Reject Payment", callback_data="admin_reject")
+                        )
                         
                         bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=forward_caption, parse_mode='HTML', reply_markup=markup)
                         
