@@ -4,4 +4,3 @@ selenium
 gunicorn
 gspread
 oauth2client
-requests
