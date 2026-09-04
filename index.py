@@ -26,6 +26,7 @@ app = Flask(__name__)
 REQUIRED_CHATS = ['@studenthelpclub', '@studenthelpclubofficial'] 
 FINAL_GROUP_LINK = "https://t.me/+YwUmMpjCgHFkZDdl"
 YOUTUBE_CHANNEL_LINK = "https://www.youtube.com/@vishalhelpclub"
+ADMIN_USERNAME_LINK = "https://t.me/studenthelpclub1"
 
 ASSIGNMENT_WEBSITE = "https://studenthelpclub.in" 
 JOBS_WEBSITE = "https://jobs.studenthelpclub.in"
@@ -33,6 +34,7 @@ UTILITY_TOOLS = "https://shctools.in/"
 
 # Aapka QR Code Direct Image Link
 QR_CODE_URL = "https://raw.githubusercontent.com/studenthelpclub/files/main/qrcode.jpg"
+UPI_ID = "studenthelpclub@naviaxis"
 
 WAITING_FOR_ENROLLMENT = set()
 WAITING_FOR_COURSE = set()
@@ -246,7 +248,7 @@ def is_admin(chat_id, user_id):
     except:
         return False
 
-# Paid / Free Choice Handler with Professional Button Layout
+# Paid / Free Choice Handler with QR Code + UPI ID + Admin Fallback Button
 @bot.callback_query_handler(func=lambda call: call.data.startswith("paid_") or call.data.startswith("free_"))
 def handle_assignment_choice(call):
     data_parts = call.data.split('_', 1)
@@ -255,25 +257,35 @@ def handle_assignment_choice(call):
     
     if choice == "paid":
         try:
-            # QR Code bhejna aur professional message ke sath
-            sent_msg = bot.send_photo(
+            # QR Code aur UPI ID dono sath mein bhejna
+            payment_caption = (
+                "💳 <b>Secure Payment Gateway - Student Help Club</b>\n\n"
+                f"• <b>Assignment PDF Price:</b> <b>₹20</b> (Special Discounted Rate)\n"
+                f"• <b>UPI ID:</b> <code>{UPI_ID}</code>\n\n"
+                "📌 <i>Instructions:</i>\n"
+                "1. Upar diye gaye QR Code ko scan karein ya UPI ID par <b>₹20</b> pay karein.\n"
+                "2. Payment successful hone ke baad <b>Screenshot</b> yahan chat mein upload karein.\n"
+                "3. Verification ke turant baad aapko PDF file provide kar di jayegi."
+            )
+            bot.send_photo(
                 call.message.chat.id, 
                 photo=QR_CODE_URL, 
-                caption=(
-                    "💳 <b>Secure Payment Gateway - Student Help Club</b>\n\n"
-                    "• <b>Assignment PDF Price:</b> <ant_t>₹20</ant_t> (Special Discounted Rate)\n\n"
-                    "📌 <i>Instructions:</i>\n"
-                    "1. Upar diye gaye QR Code ko scan karke <b>₹20</b> pay karein.\n"
-                    "2. Payment successful hone ke baad <b>Screenshot</b> yahan chat mein upload karein.\n"
-                    "3. Verification ke turant baad aapko PDF file provide kar di jayegi.\n\n"
-                    "⚠️ <i>Security Notice: Yeh QR code message kuch samay mein automatically expire/delete ho sakta hai.</i>"
-                ),
+                caption=payment_caption,
                 parse_mode='HTML'
             )
-            
-            # Optional: 2 minute (120 seconds) ke baad QR code message ko automatic delete karne ke liye background thread ya logic laga sakte hain
         except Exception:
-            bot.send_message(call.message.chat.id, "❌ QR Code load hone mein samasya aayi. Kripya admin se sampark karein.", parse_mode='HTML')
+            # Agar QR Code load hone mein koi bhi error aaye (Fail hone par Admin Button show karega)
+            markup = InlineKeyboardMarkup()
+            markup.add(InlineKeyboardButton("📞 Contact Admin (@studenthelpclub1)", url=ADMIN_USERNAME_LINK))
+            
+            fallback_text = (
+                "💳 <b>Secure Payment Gateway - Student Help Club</b>\n\n"
+                f"• <b>Assignment PDF Price:</b> ₹20\n"
+                f"• <b>UPI ID:</b> <code>{UPI_ID}</code>\n\n"
+                "⚠️ <i>Image load hone mein samasya aayi hai. Aap seedha upar di gayi UPI ID par payment kar sakte hain.</i>\n\n"
+                "👇 Kisi bhi sahayta ke liye admin se sampark karein:"
+            )
+            bot.send_message(call.message.chat.id, fallback_text, parse_mode='HTML', reply_markup=markup)
         
     elif choice == "free":
         try:
@@ -289,7 +301,6 @@ def handle_assignment_choice(call):
         except Exception:
             yt_link = YOUTUBE_CHANNEL_LINK
 
-        # Professional Buttons for Free Options (Jaisa aapne image mein manga hai)
         markup = InlineKeyboardMarkup(row_width=1)
         markup.add(
             InlineKeyboardButton("📢 Join Telegram Assignment Group", url=FINAL_GROUP_LINK),
