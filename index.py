@@ -25,14 +25,14 @@ app = Flask(__name__)
 
 REQUIRED_CHATS = ['@studenthelpclub', '@studenthelpclubofficial'] 
 FINAL_GROUP_LINK = "https://t.me/+YwUmMpjCgHFkZDdl"
-YOUTUBE_CHANNEL_LINK = "https://www.youtube.com/@StudentHelpClub"
+YOUTUBE_CHANNEL_LINK = "https://www.youtube.com/@vishalhelpclub"
 
 ASSIGNMENT_WEBSITE = "https://studenthelpclub.in" 
 JOBS_WEBSITE = "https://jobs.studenthelpclub.in"
 UTILITY_TOOLS = "https://shctools.in/"
 
 # Aapka QR Code Direct Image Link
-QR_CODE_URL = "https://github.com/studenthelpclub/files/blob/main/qrcode.jpg?raw=true"
+QR_CODE_URL = "https://raw.githubusercontent.com/studenthelpclub/files/main/qrcode.jpg"
 
 WAITING_FOR_ENROLLMENT = set()
 WAITING_FOR_COURSE = set()
