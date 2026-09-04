@@ -23,6 +23,7 @@ if not TOKEN:
 bot = telebot.TeleBot(TOKEN, threaded=False)
 app = Flask(__name__)
 
+
 REQUIRED_CHATS = ['@studenthelpclub', '@studenthelpclubofficial'] 
 FINAL_GROUP_LINK = "https://t.me/+YwUmMpjCgHFkZDdl"
 YOUTUBE_CHANNEL_LINK = "https://www.youtube.com/@StudentHelpClub"
