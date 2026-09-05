@@ -28,7 +28,7 @@ if not TOKEN:
 bot = telebot.TeleBot(TOKEN, threaded=False)
 app = Flask(__name__)
 
-# Aapke Channels/Groups jahan Auto-Posts jayenge
+# --- CHANNELS & LINKS ---
 REQUIRED_CHATS = ['@studenthelpclub', '@studenthelpclubofficial'] 
 AUTO_POST_GROUP = '@studenthelpclubofficial'  
 AUTO_ALERT_CHANNEL = '@studenthelpclub'       
@@ -45,6 +45,7 @@ QR_CODE_URL = "https://raw.githubusercontent.com/studenthelpclub/files/main/qrco
 UPI_ID = "studenthelpclub@naviaxis"
 PRICE_PER_PDF = 20  
 
+# --- STATE VARIABLES ---
 WAITING_FOR_ENROLLMENT = set()
 WAITING_FOR_COURSE = set()
 USER_STATE = {}
@@ -69,12 +70,57 @@ except Exception as e:
     print(f"Google Sheets Connection Error: {e}")
 
 # ==========================================
+# 🛠️ HELPER FUNCTIONS
+# ==========================================
+def clean_string(text):
+    return re.sub(r'[^A-Z0-9]', '', str(text).upper())
+
+def get_direct_drive_url(drive_url):
+    """Google Drive Virus Scan Bypass Generator"""
+    match = re.search(r'/d/([a-zA-Z0-9-_]+)', drive_url)
+    if not match:
+        match = re.search(r'id=([a-zA-Z0-9-_]+)', drive_url)
+    if match:
+        file_id = match.group(1)
+        return f"https://drive.google.com/uc?export=download&confirm=t&id={file_id}"
+    return None
+
+def is_admin(chat_id, user_id):
+    try:
+        member = bot.get_chat_member(chat_id, user_id)
+        return member.status in ['creator', 'administrator']
+    except:
+        return False
+
+def save_user(message, mobile="N/A"):
+    try:
+        user_id = str(message.from_user.id)
+        existing_users = users_sheet.col_values(1)
+        if user_id not in existing_users:
+            name = message.from_user.first_name or "N/A"
+            username = message.from_user.username or "N/A"
+            users_sheet.append_row([user_id, name, username, mobile])
+    except Exception:
+        pass
+
+def check_membership(user_id):
+    for chat_id in REQUIRED_CHATS:
+        try:
+            member = bot.get_chat_member(chat_id, user_id)
+            if member.status in ['left', 'kicked']:
+                return False
+        except Exception:
+            return False
+    return True
+
+# ==========================================
 # 🚀 BACKGROUND AUTO-TASKS (YOUTUBE & IGNOU)
 # ==========================================
 def background_auto_tasks():
     global LAST_SHEET4_ROW, LAST_IGNOU_ALERT
     while True:
         try:
+            # 1. YouTube Auto Poster
             records_4 = sheet4.get_all_values()
             current_rows = len(records_4)
             
@@ -102,6 +148,7 @@ def background_auto_tasks():
                         bot.send_message(AUTO_POST_GROUP, yt_msg, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=False)
                 LAST_SHEET4_ROW = current_rows
 
+            # 2. IGNOU Alerts Scraper
             try:
                 headers = {'User-Agent': 'Mozilla/5.0'}
                 response = requests.get("http://www.ignou.ac.in/ignou/bulletinboard/announcements/latest/1", headers=headers, timeout=10)
@@ -130,35 +177,14 @@ def background_auto_tasks():
                 pass
         except Exception:
             pass
-            
         time.sleep(1800)
 
 bg_thread = threading.Thread(target=background_auto_tasks, daemon=True)
 bg_thread.start()
+
 # ==========================================
-
-
-def save_user(message, mobile="N/A"):
-    try:
-        user_id = str(message.from_user.id)
-        existing_users = users_sheet.col_values(1)
-        if user_id not in existing_users:
-            name = message.from_user.first_name or "N/A"
-            username = message.from_user.username or "N/A"
-            users_sheet.append_row([user_id, name, username, mobile])
-    except Exception:
-        pass
-
-def check_membership(user_id):
-    for chat_id in REQUIRED_CHATS:
-        try:
-            member = bot.get_chat_member(chat_id, user_id)
-            if member.status in ['left', 'kicked']:
-                return False
-        except Exception:
-            return False
-    return True
-
+# 📱 MENUS & NAVIGATION
+# ==========================================
 def get_main_menu():
     markup = InlineKeyboardMarkup(row_width=2)
     markup.add(
@@ -287,6 +313,9 @@ def broadcast_message(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Broadcast Error: {e}")
 
+# ==========================================
+# 📝 IGNOU RESULT FETCHING
+# ==========================================
 def fetch_ignou_result(enr_no, chat_id):
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')
@@ -336,16 +365,9 @@ def fetch_ignou_result(enr_no, chat_id):
     else:
         bot.send_message(chat_id, "❌ Server temporary down hai. Kripya kuch samay baad punah prayas karein.")
 
-def is_admin(chat_id, user_id):
-    try:
-        member = bot.get_chat_member(chat_id, user_id)
-        return member.status in ['creator', 'administrator']
-    except:
-        return False
-
-def clean_string(text):
-    return re.sub(r'[^A-Z0-9]', '', str(text).upper())
-
+# ==========================================
+# 🔀 CALLBACK HANDLERS (FLOW LOGIC)
+# ==========================================
 @bot.callback_query_handler(func=lambda call: call.data.startswith("set_med_") or call.data in ["choice_paid", "choice_free", "admin_verify", "admin_reject", "view_sample"])
 def handle_flow(call):
     user_id = call.message.chat.id
@@ -365,6 +387,7 @@ def handle_flow(call):
             return
             
         target_uid = int(user_id_match.group(1))
+        
         reject_msg = (
             "❌ <b>Payment Verification Failed!</b>\n\n"
             "Aapka bheja gaya screenshot <b>invalid ya fake</b> paya gaya hai. Isliye aapki PDF request cancel kar di gayi hai.\n\n"
@@ -429,11 +452,10 @@ def handle_flow(call):
                 for course_name, drive_url in pdf_list:
                     try:
                         bot.send_chat_action(target_uid, 'upload_document')
-                        match = re.search(r'/d/([a-zA-Z0-9-_]+)', drive_url)
-                        if match:
-                            file_id = match.group(1)
-                            direct_url = f"https://drive.google.com/uc?export=download&id={file_id}"
-                            res = requests.get(direct_url, timeout=20)
+                        direct_url = get_direct_drive_url(drive_url)
+                        
+                        if direct_url:
+                            res = requests.get(direct_url, timeout=30)
                             
                             if res.status_code == 200 and res.content.startswith(b'%PDF'):
                                 safe_name = course_name.replace(' ', '_')
@@ -449,7 +471,8 @@ def handle_flow(call):
                         bot.send_message(target_uid, fallback_msg, parse_mode='HTML', disable_web_page_preview=True)
                         
                     except Exception:
-                        pass
+                        fallback_msg = f"🔗 <b>{course_name}</b>\n👉 <a href='{drive_url}'>Click Here to Download PDF</a>"
+                        bot.send_message(target_uid, fallback_msg, parse_mode='HTML', disable_web_page_preview=True)
                 
                 bot.send_message(target_uid, "✅ <b>Sabhi PDFs bhej diye gaye hain!</b>\nThank you for using Student Help Club!", parse_mode='HTML', reply_markup=get_back_button())
                 
@@ -526,14 +549,14 @@ def handle_flow(call):
         except Exception as e:
             bot.send_message(user_id, f"❌ Error: {e}")
 
-    # 🔥 LIVE 3-PAGE PDF CROPPING LOGIC 🔥
+    # 🔥 LIVE 3-PAGE PDF CROPPING LOGIC (BYPASS INCLUDED) 🔥
     elif call.data == "view_sample":
         try:
             bot.delete_message(call.message.chat.id, call.message.message_id)
         except:
             pass
             
-        msg = bot.send_message(user_id, "⏳ <i>Aapke PDF ka Sample (Pehle 3 Pages) taiyar kiya ja raha hai... kripya 10 seconds prateeksha karein.</i>", parse_mode='HTML')
+        msg = bot.send_message(user_id, "⏳ <i>Aapke PDF ka Sample (Pehle 3 Pages) taiyar kiya ja raha hai... kripya 10-15 seconds prateeksha karein.</i>", parse_mode='HTML')
         
         courses = order.get('raw_courses', [])
         medium = order.get('medium', 'HINDI')
@@ -550,19 +573,16 @@ def handle_flow(call):
                         
                         if s_term in r_course and medium == r_medium:
                             drive_url = str(row[3]).strip()
-                            match = re.search(r'/d/([a-zA-Z0-9-_]+)', drive_url)
-                            if match:
-                                file_id = match.group(1)
-                                direct_url = f"https://drive.google.com/uc?export=download&id={file_id}"
-                                res = requests.get(direct_url, timeout=20)
+                            direct_url = get_direct_drive_url(drive_url)
+                            
+                            if direct_url:
+                                res = requests.get(direct_url, timeout=30)
                                 
                                 if res.status_code == 200 and res.content.startswith(b'%PDF'):
-                                    # PDF Cropping in Memory
                                     pdf_file = io.BytesIO(res.content)
                                     reader = PdfReader(pdf_file)
                                     writer = PdfWriter()
                                     
-                                    # Extracting first 3 pages
                                     num_pages = min(3, len(reader.pages))
                                     for i in range(num_pages):
                                         writer.add_page(reader.pages[i])
@@ -588,9 +608,9 @@ def handle_flow(call):
                                     sample_sent = True
                                     break
                 if sample_sent:
-                    break # Sirf pehle course ka sample dega taaki speed maintain rahe
+                    break 
                     
-        except Exception as e:
+        except Exception:
             pass
             
         if not sample_sent:
@@ -601,7 +621,7 @@ def handle_flow(call):
             markup = InlineKeyboardMarkup(row_width=1)
             markup.add(InlineKeyboardButton("💳 Continue to Buy Paid PDF", callback_data="choice_paid"))
             markup.add(InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main"))
-            bot.send_message(user_id, "❌ Maaf kijiyega, is PDF ka sample abhi generate nahi ho paya. Par hamari quality 100% verified hai.", reply_markup=markup)
+            bot.send_message(user_id, "❌ Maaf kijiyega, is PDF ka file format alag hone ke kaaran (ya file access blocked hone ke kaaran) automatically sample generate nahi ho saka.\n\nPar hamari quality 100% verified hai. Aap aasaani se apna PDF purchase kar sakte hain.", reply_markup=markup)
             
     elif call.data == "choice_paid":
         total = order.get('total', 20)
@@ -684,6 +704,9 @@ def handle_flow(call):
         markup.add(InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main"))
         bot.send_message(user_id, reply, parse_mode='HTML', disable_web_page_preview=True, reply_markup=markup)
 
+# ==========================================
+# 📩 MESSAGE HANDLER (CONTINUOUS LISTENING)
+# ==========================================
 @bot.message_handler(func=lambda message: True, content_types=['text', 'audio', 'document', 'photo', 'sticker', 'video', 'video_note', 'voice', 'location', 'contact'])
 def continuous_check(message):
     user_id = message.from_user.id
@@ -773,6 +796,9 @@ def continuous_check(message):
                 else:
                      bot.send_message(message.chat.id, "👇 Kripya niche diye gaye menu se apna vikalp chunein:", parse_mode='HTML', reply_markup=get_main_menu())
 
+# ==========================================
+# 🌐 WEBHOOK SETTINGS
+# ==========================================
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
@@ -783,12 +809,16 @@ def index():
     return 'Student Help Club Bot is active and running 24/7!', 200
 
 if __name__ == "__main__":
-    # WARNING: Apna Render URL lagana mat bhoolna
-    RENDER_URL = "https://studenthelpclubbot.onrender.com" 
+    # 🔴 VERY IMPORTANT: Yahan apne Render ka link zaroor daalein (jaise: https://aapka-bot.onrender.com)
+    RENDER_URL = "https://YOUR_RENDER_URL_HERE" 
     
-    bot.remove_webhook()
-    time.sleep(1)
-    bot.set_webhook(url=RENDER_URL)
-    
+    try:
+        bot.remove_webhook()
+        time.sleep(1)
+        bot.set_webhook(url=RENDER_URL)
+        print(f"Webhook set successfully to: {RENDER_URL}")
+    except Exception as e:
+        print(f"Webhook setting failed: {e}")
+        
     port = int(os.environ.get('PORT', 5000))
     app.run(host="0.0.0.0", port=port)
