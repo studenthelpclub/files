@@ -29,10 +29,9 @@ bot = telebot.TeleBot(TOKEN, threaded=False)
 app = Flask(__name__)
 
 # --- CHANNELS & LINKS ---
-REQUIRED_CHATS = ['@studenthelpclub', '@studenthelpclubofficial',-1004353231367] 
+REQUIRED_CHATS = ['@studenthelpclub', '@studenthelpclubofficial'] 
 
 # 🚨 DHYAN DEIN: Agar group private hai, toh bot ko us group mein add karein aur '/chatid' type karein.
-# Phir jo ID mile (eg: -100123456789), usko yahan '@studenthelpclubofficial' ki jagah daal dein.
 AUTO_POST_GROUP = '@studenthelpclubofficial'  
 AUTO_ALERT_CHANNEL = '@studenthelpclub'       
 
@@ -53,7 +52,7 @@ WAITING_FOR_ENROLLMENT = set()
 WAITING_FOR_COURSE = set()
 USER_STATE = {}
 
-LAST_SHEET4_ROW = 0
+POSTED_YT_LINKS = set()
 LAST_IGNOU_ALERT = ""
 
 # --- GOOGLE SHEETS SETUP ---
@@ -116,47 +115,50 @@ def check_membership(user_id):
     return True
 
 # ==========================================
-# 🚀 ADMIN COMMANDS (NEW: /chatid & /post_yt)
+# 🚀 ADMIN COMMANDS (/chatid & /post_yt)
 # ==========================================
 @bot.message_handler(commands=['chatid'])
 def handle_chatid(message):
-    # Yeh command jis bhi group mein run hogi, uska Numeric ID degi
     bot.reply_to(message, f"📌 <b>This Chat ID is:</b> <code>{message.chat.id}</code>", parse_mode='HTML')
 
 @bot.message_handler(commands=['post_yt'])
 def manual_post_youtube(message):
     if message.from_user.id != ADMIN_ID:
         return
-    bot.reply_to(message, "⏳ <i>Fetching the latest video from Sheet 4...</i>", parse_mode='HTML')
+    bot.reply_to(message, "⏳ <i>Scanning Sheet 4 for the latest YouTube Link...</i>", parse_mode='HTML')
     try:
         records_4 = sheet4.get_all_values()
-        if len(records_4) > 1:
-            row = records_4[-1] # Gets the very last row
-            if len(row) > 3 and row[3].strip() != "":
-                subject_code = str(row[0]).strip().upper()
-                yt_link = str(row[3]).strip()
+        found_row = None
+        
+        # Oopar se neeche (bottom up) aakhri valid link dhoondhega
+        for row in reversed(records_4):
+            if len(row) > 3 and "youtu" in str(row[3]).lower():
+                found_row = row
+                break
                 
-                # Highly Professional Video Broadcast Message
-                yt_msg = (
-                    "🎓 <b>PREMIUM SOLVED ASSIGNMENT RELEASED</b> 🎓\n\n"
-                    "Dear Students,\n"
-                    "A new fully solved assignment tutorial has been uploaded for your academic preparation.\n\n"
-                    f"📖 <b>Subject Code:</b> <code>{subject_code}</code>\n\n"
-                    "Watch the complete tutorial to prepare your assignments perfectly and absolutely free of cost! 💯\n\n"
-                    f"📺 <b>Watch Full Video Here:</b>\n👉 {yt_link}\n\n"
-                    "💡 <i>If you found this helpful, please <b>Like</b> the video, <b>Subscribe</b> to our channel, and let us know your next Subject Code in the comments!</i>"
-                )
-                markup = InlineKeyboardMarkup(row_width=1)
-                markup.add(
-                    InlineKeyboardButton("📺 Watch & Prepare Now", url=yt_link),
-                    InlineKeyboardButton("🔔 Subscribe for Updates", url=YOUTUBE_CHANNEL_LINK)
-                )
-                bot.send_message(AUTO_POST_GROUP, yt_msg, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=False)
-                bot.send_message(message.chat.id, "✅ <b>Success!</b> The latest video has been professionally broadcasted to the group.", parse_mode='HTML')
-            else:
-                bot.send_message(message.chat.id, "❌ Error: The last row doesn't have a proper YouTube link.")
+        if found_row:
+            subject_code = str(found_row[0]).strip().upper()
+            yt_link = str(found_row[3]).strip()
+            
+            yt_msg = (
+                "🎓 <b>PREMIUM SOLVED ASSIGNMENT RELEASED</b> 🎓\n\n"
+                "Dear Students,\n"
+                "A new fully solved assignment tutorial has been uploaded for your academic preparation.\n\n"
+                f"📖 <b>Subject Code:</b> <code>{subject_code}</code>\n\n"
+                "Watch the complete tutorial to prepare your assignments perfectly and absolutely free of cost! 💯\n\n"
+                f"📺 <b>Watch Full Video Here:</b>\n👉 {yt_link}\n\n"
+                "💡 <i>If you found this helpful, please <b>Like</b> the video, <b>Subscribe</b> to our channel, and let us know your next Subject Code in the comments!</i>"
+            )
+            markup = InlineKeyboardMarkup(row_width=1)
+            markup.add(
+                InlineKeyboardButton("📺 Watch & Prepare Now", url=yt_link),
+                InlineKeyboardButton("🔔 Subscribe for Updates", url=YOUTUBE_CHANNEL_LINK)
+            )
+            bot.send_message(AUTO_POST_GROUP, yt_msg, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=False)
+            bot.send_message(message.chat.id, "✅ <b>Success!</b> The latest video has been professionally broadcasted to the group.", parse_mode='HTML')
+            POSTED_YT_LINKS.add(yt_link) # Mark as posted
         else:
-            bot.send_message(message.chat.id, "❌ Error: Sheet 4 is empty.")
+            bot.send_message(message.chat.id, "❌ Error: No valid YouTube link found in Column D.")
     except Exception as e:
         bot.send_message(message.chat.id, f"❌ Failed to post: {e}")
 
@@ -184,26 +186,30 @@ def broadcast_message(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Broadcast Error: {e}")
 
-
 # ==========================================
 # 🚀 BACKGROUND AUTO-TASKS (YOUTUBE & IGNOU)
 # ==========================================
 def background_auto_tasks():
-    global LAST_SHEET4_ROW, LAST_IGNOU_ALERT
+    global POSTED_YT_LINKS, LAST_IGNOU_ALERT
+    
+    # Startup Par Pehle Se Pade Links Ko Memory Mein Dalega (Taaki Spam Na Ho)
+    try:
+        records = sheet4.get_all_values()
+        for row in records:
+            if len(row) > 3 and "youtu" in str(row[3]).lower():
+                POSTED_YT_LINKS.add(str(row[3]).strip())
+    except Exception:
+        pass
+
     while True:
         try:
-            # 1. YouTube Auto Poster (Runs Automatically for NEW rows)
+            # 1. YouTube Auto Poster (Smart Detection)
             records_4 = sheet4.get_all_values()
-            current_rows = len(records_4)
-            
-            if LAST_SHEET4_ROW == 0:
-                LAST_SHEET4_ROW = current_rows
-            elif current_rows > LAST_SHEET4_ROW:
-                for i in range(LAST_SHEET4_ROW, current_rows):
-                    row = records_4[i]
-                    if len(row) > 3 and row[3].strip() != "":
+            for row in records_4:
+                if len(row) > 3:
+                    yt_link = str(row[3]).strip()
+                    if yt_link != "" and "youtu" in yt_link.lower() and yt_link not in POSTED_YT_LINKS:
                         subject_code = str(row[0]).strip().upper()
-                        yt_link = str(row[3]).strip()
                         
                         yt_msg = (
                             "🎓 <b>PREMIUM SOLVED ASSIGNMENT RELEASED</b> 🎓\n\n"
@@ -221,9 +227,9 @@ def background_auto_tasks():
                         )
                         try:
                             bot.send_message(AUTO_POST_GROUP, yt_msg, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=False)
+                            POSTED_YT_LINKS.add(yt_link) # Mark successful
                         except Exception as e:
                             print(f"Auto-post failed: {e}")
-                LAST_SHEET4_ROW = current_rows
 
             # 2. IGNOU Alerts Scraper
             try:
@@ -364,7 +370,6 @@ def prompt_course_code(call):
     )
     bot.send_message(call.message.chat.id, instruction_msg, parse_mode='HTML', reply_markup=get_back_button())
 
-
 # ==========================================
 # 📝 IGNOU RESULT FETCHING
 # ==========================================
@@ -424,22 +429,18 @@ def fetch_ignou_result(enr_no, chat_id):
 def handle_flow(call):
     user_id = call.message.chat.id
     
-    # --- ADMIN REJECT LOGIC ---
     if call.data == "admin_reject":
         if call.from_user.id != ADMIN_ID:
             bot.answer_callback_query(call.id, "❌ Restricted Action!", show_alert=True)
             return
             
         caption = call.message.caption
-        if not caption:
-            return
+        if not caption: return
             
         user_id_match = re.search(r"UserID:\s*(\d+)", caption)
-        if not user_id_match:
-            return
+        if not user_id_match: return
             
         target_uid = int(user_id_match.group(1))
-        
         reject_msg = (
             "⚠️ <b>Payment Verification Unsuccessful</b>\n\n"
             "Dear Student,\nWe could not verify the payment screenshot you provided. It appears to be invalid or incomplete, and your PDF delivery has been paused.\n\n"
@@ -454,27 +455,23 @@ def handle_flow(call):
         try:
             bot.send_message(target_uid, reject_msg, parse_mode='HTML', disable_web_page_preview=True, reply_markup=reject_markup)
             bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption=caption + "\n\n<b>[STATUS: DECLINED ❌]</b>", parse_mode='HTML')
-        except Exception:
-            pass
+        except Exception: pass
         bot.answer_callback_query(call.id, "Payment Rejected and User Notified!")
         return
 
-    # --- ADMIN VERIFICATION & DIRECT PDF SEND LOGIC ---
     if call.data == "admin_verify":
         if call.from_user.id != ADMIN_ID:
             bot.answer_callback_query(call.id, "❌ Restricted Action!", show_alert=True)
             return
             
         caption = call.message.caption
-        if not caption:
-            return
+        if not caption: return
             
         user_id_match = re.search(r"UserID:\s*(\d+)", caption)
         courses_match = re.search(r"Courses:\s*(.+)", caption)
         medium_match = re.search(r"Medium:\s*(HINDI|ENGLISH|N/A)", caption, re.IGNORECASE)
         
-        if not (user_id_match and courses_match and medium_match):
-            return
+        if not (user_id_match and courses_match and medium_match): return
             
         target_uid = int(user_id_match.group(1))
         courses_str = courses_match.group(1)
@@ -508,7 +505,6 @@ def handle_flow(call):
                         
                         if direct_url:
                             res = requests.get(direct_url, timeout=30)
-                            
                             if res.status_code == 200 and res.content.startswith(b'%PDF'):
                                 safe_name = course_name.replace(' ', '_')
                                 bot.send_document(
@@ -521,7 +517,6 @@ def handle_flow(call):
                                 
                         fallback_msg = f"🔗 <b>{course_name}</b>\n👉 <a href='{drive_url}'>Click Here to Download PDF from Drive</a>"
                         bot.send_message(target_uid, fallback_msg, parse_mode='HTML', disable_web_page_preview=True)
-                        
                     except Exception:
                         fallback_msg = f"🔗 <b>{course_name}</b>\n👉 <a href='{drive_url}'>Click Here to Download PDF from Drive</a>"
                         bot.send_message(target_uid, fallback_msg, parse_mode='HTML', disable_web_page_preview=True)
@@ -530,15 +525,13 @@ def handle_flow(call):
                 
                 try:
                     bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption=caption + "\n\n<b>[STATUS: APPROVED & DELIVERED ✅]</b>", parse_mode='HTML')
-                except Exception:
-                    pass
+                except Exception: pass
             else:
                 bot.answer_callback_query(call.id, "❌ Error: Could not locate links in database.", show_alert=True)
         except Exception as e:
             bot.answer_callback_query(call.id, f"❌ Error: {e}", show_alert=True)
         return
 
-    # --- USER FLOW LOGIC ---
     if user_id not in USER_STATE:
         bot.answer_callback_query(call.id, "❌ Session Expired. Please restart from Main Menu.", show_alert=True)
         return
@@ -550,10 +543,8 @@ def handle_flow(call):
         order['medium'] = medium
         courses = order['raw_courses']
         
-        try:
-            bot.delete_message(call.message.chat.id, call.message.message_id)
-        except:
-            pass
+        try: bot.delete_message(call.message.chat.id, call.message.message_id)
+        except: pass
             
         try:
             records_sheet1 = sheet1.get_all_values()
@@ -601,12 +592,9 @@ def handle_flow(call):
         except Exception as e:
             bot.send_message(user_id, f"❌ System Error: {e}")
 
-    # 🔥 LIVE 3-PAGE PDF CROPPING LOGIC 🔥
     elif call.data == "view_sample":
-        try:
-            bot.delete_message(call.message.chat.id, call.message.message_id)
-        except:
-            pass
+        try: bot.delete_message(call.message.chat.id, call.message.message_id)
+        except: pass
             
         msg = bot.send_message(user_id, "⏳ <i>Generating a live sample from our secure database... This takes about 10-15 seconds. Please wait.</i>", parse_mode='HTML')
         
@@ -629,7 +617,6 @@ def handle_flow(call):
                             
                             if direct_url:
                                 res = requests.get(direct_url, timeout=30)
-                                
                                 if res.status_code == 200 and res.content.startswith(b'%PDF'):
                                     pdf_file = io.BytesIO(res.content)
                                     reader = PdfReader(pdf_file)
@@ -642,7 +629,6 @@ def handle_flow(call):
                                     output_pdf = io.BytesIO()
                                     writer.write(output_pdf)
                                     output_pdf.seek(0)
-                                    
                                     safe_name = row[0].replace(' ', '_')
                                     
                                     markup = InlineKeyboardMarkup(row_width=1)
@@ -659,17 +645,12 @@ def handle_flow(call):
                                     )
                                     sample_sent = True
                                     break
-                if sample_sent:
-                    break 
-                    
-        except Exception:
-            pass
+                if sample_sent: break 
+        except Exception: pass
             
         if not sample_sent:
-            try:
-                bot.delete_message(user_id, msg.message_id)
-            except:
-                pass
+            try: bot.delete_message(user_id, msg.message_id)
+            except: pass
             markup = InlineKeyboardMarkup(row_width=1)
             markup.add(InlineKeyboardButton("💳 Proceed to Checkout", callback_data="choice_paid"))
             markup.add(InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main"))
@@ -689,22 +670,17 @@ def handle_flow(call):
             "Once the payment is successful, upload the clear <b>Payment Screenshot</b> directly in this chat.\n"
             "<i>(The system will automatically process your receipt and deliver your PDFs instantly upon admin verification).</i>"
         )
-        try:
-            bot.delete_message(call.message.chat.id, call.message.message_id)
-        except:
-            pass
+        try: bot.delete_message(call.message.chat.id, call.message.message_id)
+        except: pass
         sent_qr = bot.send_photo(user_id, photo=QR_CODE_URL, caption=payment_caption, parse_mode='HTML', reply_markup=markup)
         USER_STATE[user_id]['qr_msg_id'] = sent_qr.message_id
         
     elif call.data == "choice_free":
-        try:
-            bot.delete_message(call.message.chat.id, call.message.message_id)
-        except:
-            pass
+        try: bot.delete_message(call.message.chat.id, call.message.message_id)
+        except: pass
             
         courses = order.get('raw_courses', [])
         medium = order.get('medium', 'HINDI')
-        
         specific_yt_link = ""
         yt_links_text = ""
         
@@ -723,8 +699,7 @@ def handle_flow(call):
                                 yt_links_text += f"• <b>{row[0]}</b>: {yt_link}\n"
                                 specific_yt_link = yt_link
                             break
-        except Exception:
-            pass
+        except Exception: pass
 
         markup = InlineKeyboardMarkup(row_width=1)
         markup.add(InlineKeyboardButton("📢 Join Discussion Community", url=FINAL_GROUP_LINK))
@@ -746,7 +721,6 @@ def handle_flow(call):
                 f"{yt_links_text}\n"
                 "👇 <i>Please join our community channels for further support:</i>"
             )
-            
         else:
             markup.add(InlineKeyboardButton("📺 Visit YouTube Channel", url=YOUTUBE_CHANNEL_LINK))
             reply = (
@@ -767,20 +741,14 @@ def continuous_check(message):
     chat_type = message.chat.type
     
     if chat_type in ['group', 'supergroup']:
-        if is_admin(message.chat.id, user_id):
-            return
+        if is_admin(message.chat.id, user_id): return
         if not check_membership(user_id):
-            try:
-                bot.delete_message(message.chat.id, message.message_id)
-            except:
-                pass
+            try: bot.delete_message(message.chat.id, message.message_id)
+            except: pass
             return 
-        if message.content_type == 'document':
-            return 
-        try:
-            bot.delete_message(message.chat.id, message.message_id)
-        except:
-            pass
+        if message.content_type == 'document': return 
+        try: bot.delete_message(message.chat.id, message.message_id)
+        except: pass
             
     elif chat_type == 'private':
         if not check_membership(user_id):
@@ -792,8 +760,7 @@ def continuous_check(message):
                         try:
                             bot.delete_message(chat_id=user_id, message_id=USER_STATE[user_id]['qr_msg_id'])
                             del USER_STATE[user_id]['qr_msg_id']
-                        except Exception:
-                            pass
+                        except Exception: pass
 
                     if user_id in USER_STATE and 'raw_courses' in USER_STATE[user_id]:
                         c_str = ",".join(USER_STATE[user_id]['raw_courses'])
@@ -816,12 +783,10 @@ def continuous_check(message):
                             InlineKeyboardButton("✅ Verify Payment & Send PDFs", callback_data="admin_verify"),
                             InlineKeyboardButton("❌ Decline Payment", callback_data="admin_reject")
                         )
-                        
                         bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=forward_caption, parse_mode='HTML', reply_markup=markup)
-                        
                         bot.send_message(message.chat.id, "✅ <b>Screenshot Uploaded Successfully!</b>\n\nYour payment is currently under review by our administrators.\n⏳ <b>Estimated Verification Time: Under 30 Minutes.</b>\n\nOnce verified, the premium PDFs will be delivered securely to this chat window.", parse_mode='HTML', reply_to_message_id=message.message_id, reply_markup=get_back_button())
                     except Exception as e:
-                        bot.reply_to(message, "❌ An error occurred during transmission. Please contact our support team at @studenthelpclub1.")
+                        bot.reply_to(message, "❌ An error occurred during transmission. Please contact our support team.")
                 elif user_id not in USER_STATE:
                     bot.reply_to(message, "⚠️ System Error: It appears you have not selected any subjects yet. Please select your courses from the Main Menu before uploading a receipt.", reply_markup=get_back_button())
                 return
@@ -837,7 +802,6 @@ def continuous_check(message):
                     WAITING_FOR_COURSE.remove(user_id)
                     raw_input_text = message.text.strip().upper()
                     courses = [c.strip() for c in raw_input_text.split(',')]
-                    
                     USER_STATE[user_id] = {'raw_courses': courses}
                     
                     markup = InlineKeyboardMarkup(row_width=2)
@@ -846,13 +810,7 @@ def continuous_check(message):
                         InlineKeyboardButton("🇬🇧 English Medium", callback_data="set_med_ENGLISH")
                     )
                     markup.add(InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main"))
-                    
-                    bot.send_message(
-                        message.chat.id,
-                        "🗣️ <b>Select Academic Medium:</b>\n\nPlease select the medium/language in which you require the assignments:",
-                        parse_mode='HTML',
-                        reply_markup=markup
-                    )
+                    bot.send_message(message.chat.id, "🗣️ <b>Select Academic Medium:</b>\n\nPlease select the medium/language in which you require the assignments:", parse_mode='HTML', reply_markup=markup)
                 else:
                      bot.send_message(message.chat.id, "👇 Please select a service from the official Dashboard below:", parse_mode='HTML', reply_markup=get_main_menu())
 
@@ -869,7 +827,6 @@ def index():
     return 'Student Help Club Corporate Server is actively running!', 200
 
 if __name__ == "__main__":
-    # WARNING: Yahan apne Render ka link zaroor daalein 
     RENDER_URL = "https://YOUR_RENDER_URL_HERE" 
     
     try:
