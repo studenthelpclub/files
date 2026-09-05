@@ -132,12 +132,10 @@ def manual_post_youtube(message):
     try:
         records_4 = sheet4.get_all_values()
         found_row = None
-        
-        # 🔥 TOP TO BOTTOM SCANNING (Upar se neeche) 🔥
-        for row in records_4[1:]: # Header (row 0) chhod kar baaki check karega
+        for row in records_4[1:]:
             if len(row) > 3 and "youtu" in str(row[3]).lower():
                 found_row = row
-                break # Pehla link jo upar milega, use utha lega
+                break
                 
         if found_row:
             subject_code = str(found_row[0]).strip().upper()
@@ -196,7 +194,7 @@ def broadcast_message(message):
         bot.reply_to(message, f"❌ Broadcast Error: {e}")
 
 # ==========================================
-# 🚀 BACKGROUND AUTO-TASKS (TOP TO BOTTOM)
+# 🚀 BACKGROUND AUTO-TASKS
 # ==========================================
 def background_auto_tasks():
     global POSTED_YT_LINKS, LAST_IGNOU_ALERT
@@ -210,7 +208,6 @@ def background_auto_tasks():
     while True:
         try:
             records_4 = sheet4.get_all_values()
-            # 🔥 TOP TO BOTTOM SCANNING IN BACKGROUND 🔥
             for row in records_4[1:]:
                 if len(row) > 3:
                     yt_link = str(row[3]).strip()
@@ -272,7 +269,7 @@ bg_thread.start()
 def get_main_menu():
     markup = InlineKeyboardMarkup(row_width=2)
     markup.add(
-        InlineKeyboardButton("🔍 Check Grade Card", callback_data="start_check_result"),
+        InlineKeyboardButton("🔍 IGNOU Result", callback_data="start_check_result"),
         InlineKeyboardButton("📖 Order PDF Assignment", callback_data="start_assignment"),
         InlineKeyboardButton("📚 Join Academic Group", url=FINAL_GROUP_LINK),
         InlineKeyboardButton("🌐 Visit Official Website", url=ASSIGNMENT_WEBSITE),
@@ -318,7 +315,7 @@ def send_welcome(message):
     if check_membership(user_id):
         welcome_text = (
             "🎓 <b>Welcome to Student Help Club Premium Bot!</b>\n\n"
-            "Your ultimate destination for IGNOU Academic Solutions. We provide verified solved assignments, instant grade checks, and career updates.\n\n"
+            "Your ultimate destination for IGNOU Academic Solutions. We provide verified solved assignments, instant results, and career updates.\n\n"
             "Please select your required service from the menu below:"
         )
         bot.send_message(message.chat.id, welcome_text, parse_mode='HTML', reply_markup=get_main_menu())
@@ -345,7 +342,7 @@ def prompt_enrollment(call):
     WAITING_FOR_ENROLLMENT.add(user_id)
     try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
     except: pass
-    bot.send_message(call.message.chat.id, "🎓 <b>IGNOU Result & Grade Card Portal</b>\n\nWelcome to the official result checking system.\n\nPlease enter your 9 or 10-digit <b>Enrollment Number</b> below:", parse_mode='HTML', reply_markup=get_back_button())
+    bot.send_message(call.message.chat.id, "🎓 <b>IGNOU Result Portal</b>\n\nWelcome to the official result checking system.\n\nPlease enter your 9 or 10-digit <b>Enrollment Number</b> below:", parse_mode='HTML', reply_markup=get_back_button())
 
 @bot.callback_query_handler(func=lambda call: call.data == "start_assignment")
 def prompt_course_code(call):
@@ -478,7 +475,7 @@ def handle_flow(call):
                         r_course = clean_string(row[0])
                         r_medium = str(row[1]).strip().upper() if len(row) > 1 and str(row[1]).strip() != "" else "HINDI"
                         
-                        if s_term == r_course and medium_str == r_medium:
+                        if s_term in r_course and medium_str == r_medium:
                             pdf_list.append((row[0], str(row[3]).strip()))
                             break
                             
@@ -552,6 +549,7 @@ def handle_flow(call):
                     found_lines.append(f"❌ <b>{course_input.upper()}</b> - Not Available")
                     
             if valid_courses:
+                # 🔥 FIXED: PRICE IS NOW CALCULATED ONLY ON VALID/AVAILABLE COURSES 🔥
                 total_price = len(valid_courses) * PRICE_PER_PDF
                 order['total'] = total_price
                 order['valid_courses'] = valid_courses
@@ -781,7 +779,7 @@ def continuous_check(message):
                 if user_id in WAITING_FOR_ENROLLMENT:
                     WAITING_FOR_ENROLLMENT.remove(user_id)
                     enr_number = message.text.strip()
-                    bot.send_message(message.chat.id, f"🔍 <b>Processing Request...</b>\n\n<b>Enrollment Number:</b> <code>{enr_number}</code>\n\n<i>Fetching your latest grade card securely from IGNOU servers. Please wait a few moments...</i>", parse_mode='HTML')
+                    bot.send_message(message.chat.id, f"🔍 <b>Processing Request...</b>\n<b>Enrollment Number:</b> <code>{enr_number}</code>\n<i>Fetching your latest grade card securely from IGNOU servers. Please wait a few moments...</i>", parse_mode='HTML')
                     fetch_ignou_result(enr_number, message.chat.id)
                 
                 elif user_id in WAITING_FOR_COURSE:
