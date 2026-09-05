@@ -31,9 +31,13 @@ app = Flask(__name__)
 # --- CHANNELS & LINKS ---
 REQUIRED_CHATS = ['@studenthelpclub', '@studenthelpclubofficial'] 
 
-# 🚨 DHYAN DEIN: Agar group private hai, toh bot ko us group mein add karein aur '/chatid' type karein.
-AUTO_POST_GROUP = '@studenthelpclubofficial'  
-AUTO_ALERT_CHANNEL = '@studenthelpclub'       
+YT_POST_DESTINATIONS = [
+    '@studenthelpclubofficial',  # Main Chat Group
+    '@studenthelpclub',          # Main Channel
+    -1004353231367               # IGNOU Solved Group (Numeric ID)
+]
+
+AUTO_ALERT_CHANNEL = '@studenthelpclub'
 
 FINAL_GROUP_LINK = "https://t.me/+YwUmMpjCgHFkZDdl"
 YOUTUBE_CHANNEL_LINK = "https://www.youtube.com/@vishalhelpclub?sub_confirmation=1"
@@ -123,18 +127,17 @@ def handle_chatid(message):
 
 @bot.message_handler(commands=['post_yt'])
 def manual_post_youtube(message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    bot.reply_to(message, "⏳ <i>Scanning Sheet 4 for the latest YouTube Link...</i>", parse_mode='HTML')
+    if message.from_user.id != ADMIN_ID: return
+    bot.reply_to(message, "⏳ <i>Scanning Sheet 4 from top to bottom for the latest YouTube Link...</i>", parse_mode='HTML')
     try:
         records_4 = sheet4.get_all_values()
         found_row = None
         
-        # Oopar se neeche (bottom up) aakhri valid link dhoondhega
-        for row in reversed(records_4):
+        # 🔥 TOP TO BOTTOM SCANNING (Upar se neeche) 🔥
+        for row in records_4[1:]: # Header (row 0) chhod kar baaki check karega
             if len(row) > 3 and "youtu" in str(row[3]).lower():
                 found_row = row
-                break
+                break # Pehla link jo upar milega, use utha lega
                 
         if found_row:
             subject_code = str(found_row[0]).strip().upper()
@@ -154,9 +157,16 @@ def manual_post_youtube(message):
                 InlineKeyboardButton("📺 Watch & Prepare Now", url=yt_link),
                 InlineKeyboardButton("🔔 Subscribe for Updates", url=YOUTUBE_CHANNEL_LINK)
             )
-            bot.send_message(AUTO_POST_GROUP, yt_msg, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=False)
-            bot.send_message(message.chat.id, "✅ <b>Success!</b> The latest video has been professionally broadcasted to the group.", parse_mode='HTML')
-            POSTED_YT_LINKS.add(yt_link) # Mark as posted
+            
+            success_count = 0
+            for dest in YT_POST_DESTINATIONS:
+                try:
+                    bot.send_message(dest, yt_msg, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=False)
+                    success_count += 1
+                except Exception: pass
+                    
+            bot.send_message(message.chat.id, f"✅ <b>Success!</b> The latest video has been broadcasted to {success_count} groups/channels.", parse_mode='HTML')
+            POSTED_YT_LINKS.add(yt_link)
         else:
             bot.send_message(message.chat.id, "❌ Error: No valid YouTube link found in Column D.")
     except Exception as e:
@@ -164,8 +174,7 @@ def manual_post_youtube(message):
 
 @bot.message_handler(commands=['broadcast'])
 def broadcast_message(message):
-    if message.from_user.id != ADMIN_ID:
-        return
+    if message.from_user.id != ADMIN_ID: return
     msg_to_broadcast = message.text.replace("/broadcast", "").strip()
     if not msg_to_broadcast:
         bot.reply_to(message, "⚠️ Format: `/broadcast [Message]`")
@@ -187,25 +196,22 @@ def broadcast_message(message):
         bot.reply_to(message, f"❌ Broadcast Error: {e}")
 
 # ==========================================
-# 🚀 BACKGROUND AUTO-TASKS (YOUTUBE & IGNOU)
+# 🚀 BACKGROUND AUTO-TASKS (TOP TO BOTTOM)
 # ==========================================
 def background_auto_tasks():
     global POSTED_YT_LINKS, LAST_IGNOU_ALERT
-    
-    # Startup Par Pehle Se Pade Links Ko Memory Mein Dalega (Taaki Spam Na Ho)
     try:
         records = sheet4.get_all_values()
         for row in records:
             if len(row) > 3 and "youtu" in str(row[3]).lower():
                 POSTED_YT_LINKS.add(str(row[3]).strip())
-    except Exception:
-        pass
+    except Exception: pass
 
     while True:
         try:
-            # 1. YouTube Auto Poster (Smart Detection)
             records_4 = sheet4.get_all_values()
-            for row in records_4:
+            # 🔥 TOP TO BOTTOM SCANNING IN BACKGROUND 🔥
+            for row in records_4[1:]:
                 if len(row) > 3:
                     yt_link = str(row[3]).strip()
                     if yt_link != "" and "youtu" in yt_link.lower() and yt_link not in POSTED_YT_LINKS:
@@ -225,18 +231,15 @@ def background_auto_tasks():
                             InlineKeyboardButton("📺 Watch & Prepare Now", url=yt_link),
                             InlineKeyboardButton("🔔 Subscribe for Updates", url=YOUTUBE_CHANNEL_LINK)
                         )
-                        try:
-                            bot.send_message(AUTO_POST_GROUP, yt_msg, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=False)
-                            POSTED_YT_LINKS.add(yt_link) # Mark successful
-                        except Exception as e:
-                            print(f"Auto-post failed: {e}")
+                        for dest in YT_POST_DESTINATIONS:
+                            try: bot.send_message(dest, yt_msg, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=False)
+                            except Exception: pass
+                        POSTED_YT_LINKS.add(yt_link)
 
-            # 2. IGNOU Alerts Scraper
             try:
                 headers = {'User-Agent': 'Mozilla/5.0'}
                 response = requests.get("http://www.ignou.ac.in/ignou/bulletinboard/announcements/latest/1", headers=headers, timeout=10)
                 soup = BeautifulSoup(response.text, 'html.parser')
-                
                 first_alert = soup.find('div', class_='usercontent').find('a')
                 if first_alert:
                     alert_text = first_alert.text.strip()
@@ -256,10 +259,8 @@ def background_auto_tasks():
                         )
                         bot.send_message(AUTO_ALERT_CHANNEL, alert_msg, parse_mode='HTML', disable_web_page_preview=True)
                         LAST_IGNOU_ALERT = alert_text
-            except Exception:
-                pass
-        except Exception:
-            pass
+            except Exception: pass
+        except Exception: pass
         time.sleep(1800)
 
 bg_thread = threading.Thread(target=background_auto_tasks, daemon=True)
@@ -293,10 +294,8 @@ def handle_back(call):
     if user_id in USER_STATE:
         del USER_STATE[user_id]
         
-    try:
-        bot.delete_message(call.message.chat.id, call.message.message_id)
-    except:
-        pass
+    try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
+    except: pass
     bot.send_message(call.message.chat.id, "👇 <b>Main Dashboard:</b>\nPlease select an option from the menu below to proceed:", parse_mode='HTML', reply_markup=get_main_menu())
 
 def send_join_message(chat_id):
@@ -331,10 +330,8 @@ def verify_callback(call):
     user_id = call.from_user.id
     save_user(call.message)
     if check_membership(user_id):
-        try:
-            bot.delete_message(call.message.chat.id, call.message.message_id)
-        except Exception:
-            pass 
+        try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
+        except Exception: pass 
         bot.send_message(call.message.chat.id, "✅ <b>Access Verified!</b>\n\nThank you for joining our community. 🎉\n👇 <i>Please choose a service from the dashboard:</i>", parse_mode='HTML', reply_markup=get_main_menu())
     else:
         bot.answer_callback_query(call.id, "❌ Please ensure you have joined both channels before verifying!", show_alert=True)
@@ -346,10 +343,8 @@ def prompt_enrollment(call):
         bot.answer_callback_query(call.id, "❌ Access Denied! Please join our channels first.", show_alert=True)
         return
     WAITING_FOR_ENROLLMENT.add(user_id)
-    try:
-        bot.delete_message(call.message.chat.id, call.message.message_id)
-    except:
-        pass
+    try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
+    except: pass
     bot.send_message(call.message.chat.id, "🎓 <b>IGNOU Result & Grade Card Portal</b>\n\nWelcome to the official result checking system.\n\nPlease enter your 9 or 10-digit <b>Enrollment Number</b> below:", parse_mode='HTML', reply_markup=get_back_button())
 
 @bot.callback_query_handler(func=lambda call: call.data == "start_assignment")
@@ -359,10 +354,8 @@ def prompt_course_code(call):
         bot.answer_callback_query(call.id, "❌ Access Denied! Please join our channels first.", show_alert=True)
         return
     WAITING_FOR_COURSE.add(user_id)
-    try:
-        bot.delete_message(call.message.chat.id, call.message.message_id)
-    except:
-        pass
+    try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
+    except: pass
     instruction_msg = (
         "📚 <b>Premium Solved Assignment Delivery</b>\n\n"
         "Please enter your required <b>Course Code(s)</b> below to check availability.\n\n"
@@ -430,10 +423,7 @@ def handle_flow(call):
     user_id = call.message.chat.id
     
     if call.data == "admin_reject":
-        if call.from_user.id != ADMIN_ID:
-            bot.answer_callback_query(call.id, "❌ Restricted Action!", show_alert=True)
-            return
-            
+        if call.from_user.id != ADMIN_ID: return
         caption = call.message.caption
         if not caption: return
             
@@ -460,16 +450,13 @@ def handle_flow(call):
         return
 
     if call.data == "admin_verify":
-        if call.from_user.id != ADMIN_ID:
-            bot.answer_callback_query(call.id, "❌ Restricted Action!", show_alert=True)
-            return
-            
+        if call.from_user.id != ADMIN_ID: return
         caption = call.message.caption
         if not caption: return
             
         user_id_match = re.search(r"UserID:\s*(\d+)", caption)
-        courses_match = re.search(r"Courses:\s*(.+)", caption)
-        medium_match = re.search(r"Medium:\s*(HINDI|ENGLISH|N/A)", caption, re.IGNORECASE)
+        courses_match = re.search(r"Selected Courses:\s*(.+)", caption)
+        medium_match = re.search(r"Medium Selected:\s*(HINDI|ENGLISH|N/A)", caption, re.IGNORECASE)
         
         if not (user_id_match and courses_match and medium_match): return
             
@@ -491,7 +478,7 @@ def handle_flow(call):
                         r_course = clean_string(row[0])
                         r_medium = str(row[1]).strip().upper() if len(row) > 1 and str(row[1]).strip() != "" else "HINDI"
                         
-                        if s_term in r_course and medium_str == r_medium:
+                        if s_term == r_course and medium_str == r_medium:
                             pdf_list.append((row[0], str(row[3]).strip()))
                             break
                             
@@ -502,7 +489,6 @@ def handle_flow(call):
                     try:
                         bot.send_chat_action(target_uid, 'upload_document')
                         direct_url = get_direct_drive_url(drive_url)
-                        
                         if direct_url:
                             res = requests.get(direct_url, timeout=30)
                             if res.status_code == 200 and res.content.startswith(b'%PDF'):
@@ -514,7 +500,6 @@ def handle_flow(call):
                                     parse_mode='HTML'
                                 )
                                 continue
-                                
                         fallback_msg = f"🔗 <b>{course_name}</b>\n👉 <a href='{drive_url}'>Click Here to Download PDF from Drive</a>"
                         bot.send_message(target_uid, fallback_msg, parse_mode='HTML', disable_web_page_preview=True)
                     except Exception:
@@ -522,12 +507,10 @@ def handle_flow(call):
                         bot.send_message(target_uid, fallback_msg, parse_mode='HTML', disable_web_page_preview=True)
                 
                 bot.send_message(target_uid, "✅ <b>Delivery Complete!</b>\nAll requested files have been successfully sent. We wish you the best in your studies! 🌟", parse_mode='HTML', reply_markup=get_back_button())
-                
-                try:
-                    bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption=caption + "\n\n<b>[STATUS: APPROVED & DELIVERED ✅]</b>", parse_mode='HTML')
+                try: bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption=caption + "\n\n<b>[STATUS: APPROVED & DELIVERED ✅]</b>", parse_mode='HTML')
                 except Exception: pass
             else:
-                bot.answer_callback_query(call.id, "❌ Error: Could not locate links in database.", show_alert=True)
+                bot.answer_callback_query(call.id, "❌ Error: Could not locate exact links in database.", show_alert=True)
         except Exception as e:
             bot.answer_callback_query(call.id, f"❌ Error: {e}", show_alert=True)
         return
@@ -541,17 +524,18 @@ def handle_flow(call):
     if call.data.startswith("set_med_"):
         medium = call.data.replace("set_med_", "")
         order['medium'] = medium
-        courses = order['raw_courses']
+        courses = order.get('raw_courses', [])
         
-        try: bot.delete_message(call.message.chat.id, call.message.message_id)
+        try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
         except: pass
             
         try:
             records_sheet1 = sheet1.get_all_values()
             found_lines = []
-            found_valid = False
+            valid_courses = []
             
             for course_input in courses:
+                if not course_input.strip(): continue
                 s_term = clean_string(course_input)
                 matched = False
                 for row in records_sheet1:
@@ -560,45 +544,51 @@ def handle_flow(call):
                         r_medium = str(row[1]).strip().upper() if len(row) > 1 and str(row[1]).strip() != "" else "HINDI"
                         
                         if s_term in r_course and medium == r_medium:
-                            found_lines.append(f"• <b>{row[0]}</b> - ✅ Ready for Delivery")
+                            found_lines.append(f"✅ <b>{course_input.upper()}</b> - Available")
+                            valid_courses.append(row[0])
                             matched = True
-                            found_valid = True
                             break
                 if not matched:
-                    found_lines.append(f"• <b>{course_input}</b> - ❌ Not in Database")
+                    found_lines.append(f"❌ <b>{course_input.upper()}</b> - Not Available")
                     
-            if found_valid:
-                total_price = len(courses) * PRICE_PER_PDF
+            if valid_courses:
+                total_price = len(valid_courses) * PRICE_PER_PDF
                 order['total'] = total_price
+                order['valid_courses'] = valid_courses
                 
                 markup = InlineKeyboardMarkup(row_width=2)
                 markup.add(
-                    InlineKeyboardButton(f"💳 Proceed to Checkout (₹{total_price})", callback_data="choice_paid"),
+                    InlineKeyboardButton(f"💳 Checkout Valid PDFs (₹{total_price})", callback_data="choice_paid"),
                     InlineKeyboardButton("🆓 Watch Free Tutorial", callback_data="choice_free")
                 )
-                markup.add(InlineKeyboardButton("📄 View Live Quality Sample", callback_data="view_sample"))
+                markup.add(InlineKeyboardButton("📄 View Live Sample (3 Pages)", callback_data="view_sample"))
                 markup.add(InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main"))
                 
                 reply_text = (
                     f"📋 <b>Order Availability Report ({medium}):</b>\n\n" +
                     "\n".join(found_lines) + "\n\n" +
-                    f"💵 <b>Total Invoice Amount:</b> ₹{total_price}\n\n"
-                    "👇 <i>Please choose your preferred method to acquire the assignments:</i>"
+                    f"💵 <b>Revised Invoice Amount:</b> ₹{total_price} <i>(For {len(valid_courses)} available PDFs)</i>\n\n"
+                    "👇 <i>Please choose your preferred method:</i>"
                 )
                 bot.send_message(user_id, reply_text, parse_mode='HTML', reply_markup=markup)
             else:
                 markup = get_back_button()
-                bot.send_message(user_id, f"⚠️ We apologize, but the requested courses are currently unavailable in <b>{medium}</b> medium.", parse_mode='HTML', reply_markup=markup)
+                reply_text = (
+                    f"📋 <b>Order Availability Report ({medium}):</b>\n\n" +
+                    "\n".join(found_lines) + "\n\n" +
+                    f"⚠️ We apologize, none of the requested courses are currently available in <b>{medium}</b> medium."
+                )
+                bot.send_message(user_id, reply_text, parse_mode='HTML', reply_markup=markup)
         except Exception as e:
             bot.send_message(user_id, f"❌ System Error: {e}")
 
     elif call.data == "view_sample":
-        try: bot.delete_message(call.message.chat.id, call.message.message_id)
+        try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
         except: pass
             
         msg = bot.send_message(user_id, "⏳ <i>Generating a live sample from our secure database... This takes about 10-15 seconds. Please wait.</i>", parse_mode='HTML')
         
-        courses = order.get('raw_courses', [])
+        courses = order.get('valid_courses', order.get('raw_courses', []))
         medium = order.get('medium', 'HINDI')
         sample_sent = False
         
@@ -614,18 +604,14 @@ def handle_flow(call):
                         if s_term in r_course and medium == r_medium:
                             drive_url = str(row[3]).strip()
                             direct_url = get_direct_drive_url(drive_url)
-                            
                             if direct_url:
                                 res = requests.get(direct_url, timeout=30)
                                 if res.status_code == 200 and res.content.startswith(b'%PDF'):
                                     pdf_file = io.BytesIO(res.content)
                                     reader = PdfReader(pdf_file)
                                     writer = PdfWriter()
-                                    
                                     num_pages = min(3, len(reader.pages))
-                                    for i in range(num_pages):
-                                        writer.add_page(reader.pages[i])
-                                        
+                                    for i in range(num_pages): writer.add_page(reader.pages[i])
                                     output_pdf = io.BytesIO()
                                     writer.write(output_pdf)
                                     output_pdf.seek(0)
@@ -635,7 +621,8 @@ def handle_flow(call):
                                     markup.add(InlineKeyboardButton("💳 Continue to Full Checkout", callback_data="choice_paid"))
                                     markup.add(InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main"))
                                     
-                                    bot.delete_message(user_id, msg.message_id)
+                                    try: bot.delete_message(user_id, msg.message_id)
+                                    except: pass
                                     bot.send_document(
                                         user_id,
                                         document=(f"Sample_{safe_name}.pdf", output_pdf.getvalue()),
@@ -670,16 +657,16 @@ def handle_flow(call):
             "Once the payment is successful, upload the clear <b>Payment Screenshot</b> directly in this chat.\n"
             "<i>(The system will automatically process your receipt and deliver your PDFs instantly upon admin verification).</i>"
         )
-        try: bot.delete_message(call.message.chat.id, call.message.message_id)
+        try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
         except: pass
         sent_qr = bot.send_photo(user_id, photo=QR_CODE_URL, caption=payment_caption, parse_mode='HTML', reply_markup=markup)
         USER_STATE[user_id]['qr_msg_id'] = sent_qr.message_id
         
     elif call.data == "choice_free":
-        try: bot.delete_message(call.message.chat.id, call.message.message_id)
+        try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
         except: pass
             
-        courses = order.get('raw_courses', [])
+        courses = order.get('valid_courses', order.get('raw_courses', []))
         medium = order.get('medium', 'HINDI')
         specific_yt_link = ""
         yt_links_text = ""
@@ -712,7 +699,6 @@ def handle_flow(call):
                 f"You can prepare your <b>{courses[0]} ({medium})</b> assignment absolutely free by watching our detailed video tutorial.\n\n"
                 "👇 <i>Click below to start watching:</i>"
             )
-            
         elif yt_links_text:
             markup.add(InlineKeyboardButton("🔔 Subscribe to Channel", url=YOUTUBE_CHANNEL_LINK))
             reply = (
@@ -762,12 +748,12 @@ def continuous_check(message):
                             del USER_STATE[user_id]['qr_msg_id']
                         except Exception: pass
 
-                    if user_id in USER_STATE and 'raw_courses' in USER_STATE[user_id]:
-                        c_str = ",".join(USER_STATE[user_id]['raw_courses'])
+                    if user_id in USER_STATE and 'valid_courses' in USER_STATE[user_id]:
+                        c_str = ", ".join(USER_STATE[user_id]['valid_courses'])
                         med_str = USER_STATE[user_id].get('medium', 'HINDI')
                     else:
-                        c_str = "N/A"
-                        med_str = "N/A"
+                        c_str = ",".join(USER_STATE[user_id].get('raw_courses', [])) if user_id in USER_STATE else "N/A"
+                        med_str = USER_STATE[user_id].get('medium', 'N/A') if user_id in USER_STATE else "N/A"
                         
                     try:
                         forward_caption = (
