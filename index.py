@@ -81,7 +81,7 @@ except Exception as e:
     print(f"Google Sheets Connection Error: {e}")
 
 # ==========================================
-# 🛠️ HELPER FUNCTIONS (ANTI-CHEAT REFERRAL)
+# 🛠️ HELPER FUNCTIONS (ANTI-CHEAT REFERRAL & YT)
 # ==========================================
 def clean_string(text):
     return re.sub(r'[^A-Z0-9]', '', str(text).upper())
@@ -208,6 +208,15 @@ def deliver_pdfs_to_user(target_uid, courses_str, medium_str):
         print(f"Delivery error: {e}")
     return False
 
+# 🔥 SMART YOUTUBE CHECKER
+def is_video_public(yt_url):
+    try:
+        oembed_url = f"https://www.youtube.com/oembed?url={yt_url}&format=json"
+        res = requests.get(oembed_url, timeout=10)
+        return res.status_code == 200
+    except:
+        return False
+
 # ==========================================
 # 🚀 ADMIN COMMANDS
 # ==========================================
@@ -288,67 +297,80 @@ def broadcast_message(message):
 # ==========================================
 def background_auto_tasks():
     global POSTED_YT_LINKS, LAST_IGNOU_ALERT
+    
+    # STARTUP: Purane saare links ko "Already Posted" maan lo taaki repeat post na hon
     try:
         records = sheet4.get_all_values()
-        for row in records:
+        for row in records[1:]:
             if len(row) > 3 and "youtu" in str(row[3]).lower():
                 POSTED_YT_LINKS.add(str(row[3]).strip())
     except Exception: pass
 
     while True:
         try:
+            # 1. YOUTUBE AUTOMATIC POSTING (Scheduled Support)
             records_4 = sheet4.get_all_values()
             for row in records_4[1:]:
                 if len(row) > 3:
                     yt_link = str(row[3]).strip()
+                    # Check saare links karega, par process unhe karega jo abhi tak post nahi hue
                     if yt_link != "" and "youtu" in yt_link.lower() and yt_link not in POSTED_YT_LINKS:
-                        subject_code = str(row[0]).strip().upper()
                         
-                        yt_msg = (
-                            "🎓 <b>PREMIUM SOLVED ASSIGNMENT RELEASED</b> 🎓\n\n"
-                            "Dear Students,\n"
-                            "A new fully solved assignment tutorial has been uploaded for your academic preparation.\n\n"
-                            f"📖 <b>Subject Code:</b> <code>{subject_code}</code>\n\n"
-                            "Watch the complete tutorial to prepare your assignments perfectly and absolutely free of cost! 💯\n\n"
-                            f"📺 <b>Watch Full Video Here:</b>\n👉 {yt_link}\n\n"
-                            "💡 <i>If you found this helpful, please <b>Like</b> the video, <b>Subscribe</b> to our channel, and let us know your next Subject Code in the comments!</i>"
-                        )
-                        markup = InlineKeyboardMarkup(row_width=1)
-                        markup.add(
-                            InlineKeyboardButton("📺 Watch & Prepare Now", url=yt_link),
-                            InlineKeyboardButton("🔔 Subscribe for Updates", url=YOUTUBE_CHANNEL_LINK)
-                        )
-                        for dest in YT_POST_DESTINATIONS:
-                            try: bot.send_message(dest, yt_msg, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=False)
-                            except Exception: pass
-                        POSTED_YT_LINKS.add(yt_link)
-
-            try:
-                headers = {'User-Agent': 'Mozilla/5.0'}
-                response = requests.get("http://www.ignou.ac.in/ignou/bulletinboard/announcements/latest/1", headers=headers, timeout=10)
-                soup = BeautifulSoup(response.text, 'html.parser')
-                first_alert = soup.find('div', class_='usercontent').find('a')
-                if first_alert:
-                    alert_text = first_alert.text.strip()
-                    alert_link = first_alert['href']
-                    if not alert_link.startswith("http"):
-                        alert_link = "http://www.ignou.ac.in" + alert_link
-
-                    if LAST_IGNOU_ALERT == "":
-                        LAST_IGNOU_ALERT = alert_text
-                    elif alert_text != LAST_IGNOU_ALERT:
-                        alert_msg = (
-                            "📢 <b>IGNOU LATEST OFFICIAL NOTIFICATION</b> 📢\n\n"
-                            f"📌 <b>Update:</b> {alert_text}\n\n"
-                            "🔗 <b>Official Details Link:</b>\n"
-                            f"👉 <a href='{alert_link}'>Click Here to Read More</a>\n\n"
-                            "<i>Stay updated with Student Help Club!</i>"
-                        )
-                        bot.send_message(AUTO_ALERT_CHANNEL, alert_msg, parse_mode='HTML', disable_web_page_preview=True)
-                        LAST_IGNOU_ALERT = alert_text
-            except Exception: pass
+                        # 🔥 AB CHECK KAREGA KI KYA VIDEO PUBLIC HO GAYI HAI 🔥
+                        if is_video_public(yt_link):
+                            subject_code = str(row[0]).strip().upper()
+                            
+                            yt_msg = (
+                                "🎓 <b>PREMIUM SOLVED ASSIGNMENT RELEASED</b> 🎓\n\n"
+                                "Dear Students,\n"
+                                "A new fully solved assignment tutorial has been uploaded for your academic preparation.\n\n"
+                                f"📖 <b>Subject Code:</b> <code>{subject_code}</code>\n\n"
+                                "Watch the complete tutorial to prepare your assignments perfectly and absolutely free of cost! 💯\n\n"
+                                f"📺 <b>Watch Full Video Here:</b>\n👉 {yt_link}\n\n"
+                                "💡 <i>If you found this helpful, please <b>Like</b> the video, <b>Subscribe</b> to our channel, and let us know your next Subject Code in the comments!</i>"
+                            )
+                            markup = InlineKeyboardMarkup(row_width=1)
+                            markup.add(
+                                InlineKeyboardButton("📺 Watch & Prepare Now", url=yt_link),
+                                InlineKeyboardButton("🔔 Subscribe for Updates", url=YOUTUBE_CHANNEL_LINK)
+                            )
+                            for dest in YT_POST_DESTINATIONS:
+                                try: bot.send_message(dest, yt_msg, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=False)
+                                except Exception: pass
+                                
+                            # Post hone ke baad list mein daal dega taaki dubara kabhi post na ho
+                            POSTED_YT_LINKS.add(yt_link)
+                            
         except Exception: pass
-        time.sleep(1800)
+
+        # 2. IGNOU ALERTS
+        try:
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            response = requests.get("http://www.ignou.ac.in/ignou/bulletinboard/announcements/latest/1", headers=headers, timeout=10)
+            soup = BeautifulSoup(response.text, 'html.parser')
+            first_alert = soup.find('div', class_='usercontent').find('a')
+            if first_alert:
+                alert_text = first_alert.text.strip()
+                alert_link = first_alert['href']
+                if not alert_link.startswith("http"):
+                    alert_link = "http://www.ignou.ac.in" + alert_link
+
+                if LAST_IGNOU_ALERT == "":
+                    LAST_IGNOU_ALERT = alert_text
+                elif alert_text != LAST_IGNOU_ALERT:
+                    alert_msg = (
+                        "📢 <b>IGNOU LATEST OFFICIAL NOTIFICATION</b> 📢\n\n"
+                        f"📌 <b>Update:</b> {alert_text}\n\n"
+                        "🔗 <b>Official Details Link:</b>\n"
+                        f"👉 <a href='{alert_link}'>Click Here to Read More</a>\n\n"
+                        "<i>Stay updated with Student Help Club!</i>"
+                    )
+                    bot.send_message(AUTO_ALERT_CHANNEL, alert_msg, parse_mode='HTML', disable_web_page_preview=True)
+                    LAST_IGNOU_ALERT = alert_text
+        except Exception: pass
+        
+        # Ab bot har 5 MINUTE mein check karega ki koi video ka time hua ya nahi
+        time.sleep(300)
 
 bg_thread = threading.Thread(target=background_auto_tasks, daemon=True)
 bg_thread.start()
@@ -684,7 +706,7 @@ def handle_flow(call):
                 total_price = len(valid_courses) * PRICE_PER_PDF
                 order['total'] = total_price
                 order['valid_courses'] = valid_courses
-                order['pending_discount'] = 0  # 🔥 FIX 1: POINTS SAVED TO PENDING ONLY 🔥
+                order['pending_discount'] = 0
                 
                 user_pts = get_user_points(str(user_id))
                 
@@ -726,7 +748,6 @@ def handle_flow(call):
             discount = min(user_pts, total)
             remaining_total = total - discount
             
-            # 🔥 FIX 1: STORE IN STATE. DO NOT CUT FROM SHEET YET. 🔥
             order['pending_discount'] = discount
             
             try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
@@ -772,12 +793,11 @@ def handle_flow(call):
         c_str = ", ".join(order.get('valid_courses', []))
         med_str = order.get('medium', 'HINDI')
         
-        # 🔥 FIX 1: DEDUCT POINTS ONLY NOW (WHEN ORDER IS PLACED) 🔥
         discount_to_apply = order.get('pending_discount', 0)
         if discount_to_apply > 0:
             current_pts = get_user_points(str(user_id))
             update_user_points(str(user_id), current_pts - discount_to_apply)
-            order['pending_discount'] = 0 # reset to prevent double deduction
+            order['pending_discount'] = 0 
         
         bot.send_message(
             user_id,
@@ -785,12 +805,10 @@ def handle_flow(call):
             parse_mode='HTML'
         )
         
-        # 🔥 FIX 2: THREADED DELIVERY SO BOT DOES NOT HANG 🔥
         def run_free_delivery():
             deliver_pdfs_to_user(user_id, c_str, med_str)
         threading.Thread(target=run_free_delivery, daemon=True).start()
 
-    # 🔥 FIX 2: THREADED SAMPLE GENERATION 🔥
     elif call.data == "view_sample":
         try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
         except: pass
@@ -967,12 +985,11 @@ def continuous_check(message):
                         del USER_STATE[user_id]['qr_msg_id']
                     except Exception: pass
 
-                    # 🔥 FIX 1: FINAL DEDUCTION UPON UPLOADING THE SCREENSHOT 🔥
                     discount_to_apply = USER_STATE[user_id].get('pending_discount', 0)
                     if discount_to_apply > 0:
                         current_pts = get_user_points(str(user_id))
                         update_user_points(str(user_id), current_pts - discount_to_apply)
-                        USER_STATE[user_id]['pending_discount'] = 0 # reset
+                        USER_STATE[user_id]['pending_discount'] = 0 
 
                     if user_id in USER_STATE and 'valid_courses' in USER_STATE[user_id]:
                         c_str = ", ".join(USER_STATE[user_id]['valid_courses'])
@@ -1009,7 +1026,6 @@ def continuous_check(message):
                     enr_number = message.text.strip()
                     bot.send_message(message.chat.id, f"🔍 <b>Processing Request...</b>\n\n<b>Enrollment Number:</b> <code>{enr_number}</code>\n\n<i>Fetching your latest grade card securely from IGNOU servers. Please wait a few moments...</i>", parse_mode='HTML')
                     
-                    # 🔥 FIX 2: THREADED SELENIUM SO BOT DOES NOT HANG 🔥
                     threading.Thread(target=fetch_ignou_result, args=(enr_number, message.chat.id), daemon=True).start()
                 
                 elif user_id in WAITING_FOR_COURSE:
