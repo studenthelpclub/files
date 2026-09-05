@@ -95,8 +95,11 @@ def background_auto_tasks():
                             f"📺 <b>Watch Video Here:</b>\n👉 {yt_link}\n\n"
                             "💡 <i>Kripya video ko Like karein, Channel ko Subscribe karein, aur apna next Subject Code Comment box mein zaroor likhein!</i>"
                         )
-                        markup = InlineKeyboardMarkup()
-                        markup.add(InlineKeyboardButton("📺 Watch & Write Now", url=yt_link))
+                        markup = InlineKeyboardMarkup(row_width=1)
+                        markup.add(
+                            InlineKeyboardButton("📺 Watch & Write Now", url=yt_link),
+                            InlineKeyboardButton("🔔 Subscribe Channel", url=YOUTUBE_CHANNEL_LINK)
+                        )
                         bot.send_message(AUTO_POST_GROUP, yt_msg, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=False)
                 LAST_SHEET4_ROW = current_rows
 
@@ -299,7 +302,6 @@ def fetch_ignou_result(enr_no, chat_id):
     driver.quit()
 
     if success and os.path.exists(file_name):
-        # 🔥 RESULT BRANDING FIXED HERE 🔥
         caption_text = (
             f"✅ <b>Result for Enrollment:</b> <code>{enr_no}</code>\n\n"
             f"🚀 <i>Powered by:</i> <b>Student Help Club</b>\n"
@@ -327,7 +329,7 @@ def clean_string(text):
 def handle_flow(call):
     user_id = call.message.chat.id
     
-    # 🔥 ADMIN REJECT LOGIC FIXED HERE 🔥
+    # --- ADMIN REJECT LOGIC ---
     if call.data == "admin_reject":
         if call.from_user.id != ADMIN_ID:
             bot.answer_callback_query(call.id, "❌ Sirf admin ke liye!", show_alert=True)
@@ -348,11 +350,18 @@ def handle_flow(call):
         reject_msg = (
             "❌ <b>Payment Verification Failed!</b>\n\n"
             "Aapka bheja gaya screenshot <b>invalid ya fake</b> paya gaya hai. Isliye aapki PDF request cancel kar di gayi hai.\n\n"
-            "Agar aapne payment successfully kiya hai, toh kripya sahi screenshot bhejein ya admin se sampark karein:\n"
-            f"👉 <b>{ADMIN_USERNAME_LINK}</b>"
+            "Agar aapne payment successfully kiya hai, toh kripya sahi screenshot bhejein ya niche diye gaye button par click karke admin se sampark karein:"
         )
+        
+        # 🔥 Added Proper Buttons for Rejected Message 🔥
+        reject_markup = InlineKeyboardMarkup(row_width=1)
+        reject_markup.add(
+            InlineKeyboardButton("📞 Contact Admin", url=ADMIN_USERNAME_LINK),
+            InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main")
+        )
+
         try:
-            bot.send_message(target_uid, reject_msg, parse_mode='HTML', disable_web_page_preview=True)
+            bot.send_message(target_uid, reject_msg, parse_mode='HTML', disable_web_page_preview=True, reply_markup=reject_markup)
         except:
             pass
             
@@ -512,19 +521,65 @@ def handle_flow(call):
         except:
             pass
             
-        markup = InlineKeyboardMarkup(row_width=1)
-        markup.add(
-            InlineKeyboardButton("📢 Join Telegram Assignment Group", url=FINAL_GROUP_LINK),
-            InlineKeyboardButton("📺 Watch & Write via YouTube Video", url=YOUTUBE_CHANNEL_LINK),
-            InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main")
-        )
+        courses = order.get('raw_courses', [])
+        medium = order.get('medium', 'HINDI')
+        
+        specific_yt_link = ""
+        yt_links_text = ""
+        
+        # Sheet 4 se YouTube link fetch karna
+        try:
+            records_sheet4 = sheet4.get_all_values()
+            for course_input in courses:
+                s_term = clean_string(course_input)
+                for row in records_sheet4:
+                    if len(row) > 3:
+                        r_course = clean_string(row[0])
+                        r_medium = str(row[1]).strip().upper() if len(row) > 1 and str(row[1]).strip() != "" else "HINDI"
+                        
+                        if s_term in r_course and medium == r_medium:
+                            yt_link = str(row[3]).strip()
+                            if yt_link:
+                                yt_links_text += f"• <b>{row[0]}</b>: {yt_link}\n"
+                                specific_yt_link = yt_link
+                            break
+        except Exception as e:
+            pass
 
-        reply = (
-            "🆓 <b>Free IGNOU Solved Assignment Access</b>\n\n"
-            "Aap bilkul nishulk (Free) mein hamare resources ka upyog karke apna assignment likh sakte hain:\n\n"
-            "👇 <i>Neeche diye gaye buttons par click karke group join karein ya video dekhein:</i>"
-        )
-        bot.send_message(user_id, reply, parse_mode='HTML', reply_markup=markup)
+        markup = InlineKeyboardMarkup(row_width=1)
+        markup.add(InlineKeyboardButton("📢 Join Telegram Assignment Group", url=FINAL_GROUP_LINK))
+        
+        # Agar sirf 1 course hai aur uska link mil gaya
+        if len(courses) == 1 and specific_yt_link:
+            markup.add(InlineKeyboardButton("📺 Watch & Write via YouTube", url=specific_yt_link))
+            markup.add(InlineKeyboardButton("🔔 Subscribe Channel", url=YOUTUBE_CHANNEL_LINK))
+            reply = (
+                "🆓 <b>Free IGNOU Solved Assignment Access</b>\n\n"
+                f"Aap <b>{courses[0]} ({medium})</b> ka assignment bilkul nishulk (Free) mein video dekh kar likh sakte hain.\n\n"
+                "👇 <i>Neeche diye gaye button par click karke video dekhein:</i>"
+            )
+            
+        # Agar ek se zyada courses hain aur unke links mil gaye
+        elif yt_links_text:
+            markup.add(InlineKeyboardButton("🔔 Subscribe Channel", url=YOUTUBE_CHANNEL_LINK))
+            reply = (
+                "🆓 <b>Free IGNOU Solved Assignment Access</b>\n\n"
+                "Aapke courses ke video links niche diye gaye hain:\n\n"
+                f"{yt_links_text}\n"
+                "👇 <i>Kripya hamara group join karein aur channel ko subscribe karein:</i>"
+            )
+            
+        # Agar course ka link Sheet 4 mein nahi milta
+        else:
+            markup.add(InlineKeyboardButton("📺 Visit YouTube Channel", url=YOUTUBE_CHANNEL_LINK))
+            reply = (
+                "🆓 <b>Free IGNOU Solved Assignment Access</b>\n\n"
+                "Is course ka specific video abhi sheet mein update nahi hua hai, par aap hamare YouTube channel par directly search kar sakte hain.\n\n"
+                "👇 <i>Neeche diye gaye buttons par click karein:</i>"
+            )
+
+        markup.add(InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main"))
+        bot.send_message(user_id, reply, parse_mode='HTML', disable_web_page_preview=True, reply_markup=markup)
 
 @bot.message_handler(func=lambda message: True, content_types=['text', 'audio', 'document', 'photo', 'sticker', 'video', 'video_note', 'voice', 'location', 'contact'])
 def continuous_check(message):
@@ -569,7 +624,6 @@ def continuous_check(message):
                             f"🗣️ <b>Medium:</b> {med_str}\n\n"
                             "Kripya payment verify karke niche diye gaye button par click karein:"
                         )
-                        # 🔥 ADMIN VERIFY AND REJECT BUTTONS ADDED HERE 🔥
                         markup = InlineKeyboardMarkup()
                         markup.add(
                             InlineKeyboardButton("✅ Verify & Send PDFs", callback_data="admin_verify"),
