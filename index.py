@@ -32,7 +32,7 @@ AUTO_POST_GROUP = '@studenthelpclubofficial'  # YouTube video idhar post honge
 AUTO_ALERT_CHANNEL = '@studenthelpclub'       # IGNOU Alerts idhar post honge
 
 FINAL_GROUP_LINK = "https://t.me/+YwUmMpjCgHFkZDdl"
-YOUTUBE_CHANNEL_LINK = "https://www.youtube.com/@vishalhelpclub"
+YOUTUBE_CHANNEL_LINK = "https://www.youtube.com/@vishalhelpclub?sub_confirmation=1"
 ADMIN_USERNAME_LINK = "https://t.me/studenthelpclub1"
 
 ASSIGNMENT_WEBSITE = "https://studenthelpclub.in" 
