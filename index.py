@@ -144,22 +144,12 @@ def save_user_secure(message, referrer_id=None):
             
             users_sheet.append_row([user_id, name, username, "N/A", "0", valid_referrer])
             
+            # Temporary store referrer ID until verified
             if valid_referrer != "None":
-                ref_row = get_user_row(valid_referrer)
-                if ref_row:
-                    current_pts = get_user_points(valid_referrer)
-                    new_pts = current_pts + POINTS_PER_REFERRAL
-                    update_user_points(valid_referrer, new_pts)
-                    try:
-                        bot.send_message(
-                            int(valid_referrer),
-                            f"🎉 <b>Referral Bonus Credited!</b>\n\nNaye student ne aapke secure referral link se join kiya hai. Aapke account mein <b>+{POINTS_PER_REFERRAL} Points</b> add kar diye gaye hain! 🎁",
-                            parse_mode='HTML'
-                        )
-                    except:
-                        pass
+                 USER_STATE[user_id] = {'pending_referrer': valid_referrer}
+
     except Exception as e:
-        pass
+        print(f"Secure save user error: {e}")
 
 def check_membership(user_id):
     for chat_id in REQUIRED_CHATS:
@@ -393,10 +383,9 @@ def handle_back(call):
     WAITING_FOR_ENROLLMENT.discard(user_id)
     WAITING_FOR_COURSE.discard(user_id)
     if user_id in USER_STATE:
-        # Reset any pending discounts when going back to main menu
         if 'pending_discount' in USER_STATE[user_id]:
             USER_STATE[user_id]['pending_discount'] = 0
-        del USER_STATE[user_id]
+        # Don't delete USER_STATE entirely here so pending referrers are preserved
         
     try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
     except: pass
@@ -474,6 +463,25 @@ def handle_refer_earn(call):
 def verify_callback(call):
     user_id = call.from_user.id
     if check_membership(user_id):
+        # Now that membership is confirmed, check for pending referrer and award points
+        if user_id in USER_STATE and 'pending_referrer' in USER_STATE[user_id]:
+            valid_referrer = USER_STATE[user_id]['pending_referrer']
+            ref_row = get_user_row(valid_referrer)
+            if ref_row:
+                current_pts = get_user_points(valid_referrer)
+                new_pts = current_pts + POINTS_PER_REFERRAL
+                update_user_points(valid_referrer, new_pts)
+                try:
+                    bot.send_message(
+                        int(valid_referrer),
+                        f"🎉 <b>Referral Bonus Credited!</b>\n\nNaye student ne aapke secure referral link se join kiya hai. Aapke account mein <b>+{POINTS_PER_REFERRAL} Points</b> add kar diye gaye hain! 🎁",
+                        parse_mode='HTML'
+                    )
+                except:
+                    pass
+            # Clear pending referrer so it's not credited again
+            del USER_STATE[user_id]['pending_referrer']
+
         try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
         except Exception: pass 
         bot.send_message(call.message.chat.id, "✅ <b>Access Verified!</b>\n\nThank you for joining all communities. 🎉\n👇 <i>Please choose a service from the dashboard:</i>", parse_mode='HTML', reply_markup=get_main_menu())
