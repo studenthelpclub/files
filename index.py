@@ -29,12 +29,16 @@ bot = telebot.TeleBot(TOKEN, threaded=False)
 app = Flask(__name__)
 
 # --- CHANNELS & LINKS ---
-REQUIRED_CHATS = ['@studenthelpclub', '@studenthelpclubofficial'] 
+REQUIRED_CHATS = [
+    '@studenthelpclub',          # 1. Main Channel
+    '@studenthelpclubofficial',  # 2. Main Discussion Group
+    -1004353231367               # 3. IGNOU Solved Group (Numeric ID)
+]
 
 YT_POST_DESTINATIONS = [
-    '@studenthelpclubofficial',  # Main Chat Group
-    '@studenthelpclub',          # Main Channel
-    -1004353231367               # IGNOU Solved Group (Numeric ID)
+    '@studenthelpclubofficial',
+    '@studenthelpclub',
+    -1004353231367
 ]
 
 AUTO_ALERT_CHANNEL = '@studenthelpclub'
@@ -50,7 +54,7 @@ UTILITY_TOOLS = "https://shctools.in/"
 QR_CODE_URL = "https://raw.githubusercontent.com/studenthelpclub/files/main/qrcode.jpg"
 UPI_ID = "studenthelpclub@naviaxis"
 PRICE_PER_PDF = 20  
-POINTS_PER_REFERRAL = 5  # Ek referral par milne wale points
+POINTS_PER_REFERRAL = 5
 
 # --- STATE VARIABLES ---
 WAITING_FOR_ENROLLMENT = set()
@@ -77,7 +81,7 @@ except Exception as e:
     print(f"Google Sheets Connection Error: {e}")
 
 # ==========================================
-# 🛠️ HELPER FUNCTIONS (REFERRAL & POINTS)
+# 🛠️ HELPER FUNCTIONS (ANTI-CHEAT REFERRAL)
 # ==========================================
 def clean_string(text):
     return re.sub(r'[^A-Z0-9]', '', str(text).upper())
@@ -111,7 +115,7 @@ def get_user_points(user_id_str):
     try:
         row = get_user_row(user_id_str)
         if row:
-            val = users_sheet.cell(row, 5).value  # Column 5: Points
+            val = users_sheet.cell(row, 5).value
             return int(val) if val and val.isdigit() else 0
     except Exception:
         pass
@@ -129,6 +133,7 @@ def save_user_secure(message, referrer_id=None):
     try:
         user_id = str(message.from_user.id)
         col_vals = users_sheet.col_values(1)
+        
         if user_id not in col_vals:
             name = message.from_user.first_name or "N/A"
             username = message.from_user.username or "N/A"
@@ -507,7 +512,7 @@ def fetch_ignou_result(enr_no, chat_id):
 # ==========================================
 # 🔀 CALLBACK HANDLERS
 # ==========================================
-@bot.callback_query_handler(func=lambda call: call.data.startswith("set_med_") or call.data in ["choice_paid", "choice_free", "admin_verify", "admin_reject", "view_sample", "redeem_points", "back_to_assignment", "free_redeemed_order"])
+@bot.callback_query_handler(func=lambda call: call.data.startswith("set_med_") or call.data in ["choice_paid", "choice_free", "admin_verify", "admin_reject", "view_sample", "redeem_points", "back_to_assignment", "free_rede_order"])
 def handle_flow(call):
     user_id = call.message.chat.id
     
@@ -536,8 +541,8 @@ def handle_flow(call):
         target_uid = int(user_id_match.group(1))
         reject_msg = (
             "⚠️ <b>Payment Verification Unsuccessful</b>\n\n"
-            "Dear Student,\nWe could not verify the payment screenshot you provided. It appears to be invalid or incomplete, and your PDF delivery has been paused.\n\n"
-            "If the amount has been successfully deducted from your bank account, please upload a clear, correct receipt or contact our support desk immediately for manual assistance:\n"
+            "Dear Student,\nWe could not verify the payment/order request you provided. It appears to be invalid or incomplete, and your PDF delivery has been paused.\n\n"
+            "Please contact our support desk immediately for assistance:\n"
             f"👉 <b>{ADMIN_USERNAME_LINK}</b>"
         )
         reject_markup = InlineKeyboardMarkup(row_width=1)
@@ -549,7 +554,7 @@ def handle_flow(call):
             bot.send_message(target_uid, reject_msg, parse_mode='HTML', disable_web_page_preview=True, reply_markup=reject_markup)
             bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption=caption + "\n\n<b>[STATUS: DECLINED ❌]</b>", parse_mode='HTML')
         except Exception: pass
-        bot.answer_callback_query(call.id, "Payment Rejected and User Notified!")
+        bot.answer_callback_query(call.id, "Order Rejected and User Notified!")
         return
 
     if call.data == "admin_verify":
@@ -713,11 +718,10 @@ def handle_flow(call):
             try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
             except: pass
             
-            # 🔥 SMART CHECK: IF REMAINING TOTAL IS 0, SKIP QR GATEWAY AND GIVE DIRECT ORDER BUTTON 🔥
             if remaining_total == 0:
                 markup = InlineKeyboardMarkup(row_width=1)
                 markup.add(
-                    InlineKeyboardButton("🚀 Place Free Order (Points Redeemed)", callback_data="free_redeemed_order"),
+                    InlineKeyboardButton("🚀 Place Free Order (Points Redeemed)", callback_data="free_rede_order"),
                     InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main")
                 )
                 bot.send_message(
@@ -747,7 +751,7 @@ def handle_flow(call):
         else:
             bot.answer_callback_query(call.id, "❌ No points available to redeem!", show_alert=True)
 
-    elif call.data == "free_redeemed_order":
+    elif call.data == "free_rede_order":
         try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
         except: pass
         
@@ -774,7 +778,7 @@ def handle_flow(call):
                 user_id,
                 "✅ <b>Order Submitted Successfully!</b>\n\nYour order has been fully paid using reward points. Our admin is processing your documents and they will be delivered here shortly.",
                 parse_mode='HTML',
-                reply_markup=get_back_button()
+                reply_markup=get_navigation_buttons("back_to_main")
             )
         except Exception as e:
             bot.send_message(user_id, f"❌ Error submitting order: {e}")
