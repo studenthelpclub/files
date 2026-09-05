@@ -30,6 +30,7 @@ app = Flask(__name__)
 
 # --- CHANNELS & LINKS ---
 REQUIRED_CHATS = ['@studenthelpclub', '@studenthelpclubofficial'] 
+# Agar aapka YouTube auto-post group private hai, toh '@username' ki jagah uski Numeric ID daalein (e.g., -100123456789)
 AUTO_POST_GROUP = '@studenthelpclubofficial'  
 AUTO_ALERT_CHANNEL = '@studenthelpclub'       
 
@@ -76,7 +77,6 @@ def clean_string(text):
     return re.sub(r'[^A-Z0-9]', '', str(text).upper())
 
 def get_direct_drive_url(drive_url):
-    """Google Drive Virus Scan Bypass Generator"""
     match = re.search(r'/d/([a-zA-Z0-9-_]+)', drive_url)
     if not match:
         match = re.search(r'id=([a-zA-Z0-9-_]+)', drive_url)
@@ -145,7 +145,10 @@ def background_auto_tasks():
                             InlineKeyboardButton("📺 Watch & Write Now", url=yt_link),
                             InlineKeyboardButton("🔔 Subscribe Channel", url=YOUTUBE_CHANNEL_LINK)
                         )
-                        bot.send_message(AUTO_POST_GROUP, yt_msg, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=False)
+                        try:
+                            bot.send_message(AUTO_POST_GROUP, yt_msg, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=False)
+                        except Exception as e:
+                            print(f"Auto-post failed: {e}")
                 LAST_SHEET4_ROW = current_rows
 
             # 2. IGNOU Alerts Scraper
@@ -549,7 +552,7 @@ def handle_flow(call):
         except Exception as e:
             bot.send_message(user_id, f"❌ Error: {e}")
 
-    # 🔥 LIVE 3-PAGE PDF CROPPING LOGIC (BYPASS INCLUDED) 🔥
+    # 🔥 LIVE 3-PAGE PDF CROPPING LOGIC 🔥
     elif call.data == "view_sample":
         try:
             bot.delete_message(call.message.chat.id, call.message.message_id)
@@ -621,7 +624,7 @@ def handle_flow(call):
             markup = InlineKeyboardMarkup(row_width=1)
             markup.add(InlineKeyboardButton("💳 Continue to Buy Paid PDF", callback_data="choice_paid"))
             markup.add(InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main"))
-            bot.send_message(user_id, "❌ Maaf kijiyega, is PDF ka file format alag hone ke kaaran (ya file access blocked hone ke kaaran) automatically sample generate nahi ho saka.\n\nPar hamari quality 100% verified hai. Aap aasaani se apna PDF purchase kar sakte hain.", reply_markup=markup)
+            bot.send_message(user_id, "❌ Maaf kijiyega, is PDF ka file format alag hone ke kaaran automatically sample generate nahi ho saka.\n\nPar hamari quality 100% verified hai. Aap aasaani se apna PDF purchase kar sakte hain.", reply_markup=markup)
             
     elif call.data == "choice_paid":
         total = order.get('total', 20)
@@ -640,7 +643,9 @@ def handle_flow(call):
             bot.delete_message(call.message.chat.id, call.message.message_id)
         except:
             pass
-        bot.send_photo(user_id, photo=QR_CODE_URL, caption=payment_caption, parse_mode='HTML', reply_markup=markup)
+        # 🔥 QR CODE MESSAGE ID SAVE KIYA JAA RAHA HAI TAAKI DELETE HO SAKE 🔥
+        sent_qr = bot.send_photo(user_id, photo=QR_CODE_URL, caption=payment_caption, parse_mode='HTML', reply_markup=markup)
+        USER_STATE[user_id]['qr_msg_id'] = sent_qr.message_id
         
     elif call.data == "choice_free":
         try:
@@ -734,6 +739,14 @@ def continuous_check(message):
         else:
             if message.content_type == 'photo':
                 if ADMIN_ID:
+                    # 🔥 QR CODE DELETION LOGIC IMPLEMENTED HERE 🔥
+                    if user_id in USER_STATE and 'qr_msg_id' in USER_STATE[user_id]:
+                        try:
+                            bot.delete_message(chat_id=user_id, message_id=USER_STATE[user_id]['qr_msg_id'])
+                            del USER_STATE[user_id]['qr_msg_id']
+                        except Exception:
+                            pass
+
                     if user_id in USER_STATE and 'raw_courses' in USER_STATE[user_id]:
                         c_str = ",".join(USER_STATE[user_id]['raw_courses'])
                         med_str = USER_STATE[user_id].get('medium', 'HINDI')
@@ -766,7 +779,6 @@ def continuous_check(message):
                 return
 
             if message.content_type == 'text' and not message.text.startswith('/'):
-                
                 if user_id in WAITING_FOR_ENROLLMENT:
                     WAITING_FOR_ENROLLMENT.remove(user_id)
                     enr_number = message.text.strip()
@@ -809,7 +821,7 @@ def index():
     return 'Student Help Club Bot is active and running 24/7!', 200
 
 if __name__ == "__main__":
-    # 🔴 VERY IMPORTANT: Yahan apne Render ka link zaroor daalein (jaise: https://aapka-bot.onrender.com)
+    # WARNING: Yahan apne Render ka link zaroor daalein 
     RENDER_URL = "https://YOUR_RENDER_URL_HERE" 
     
     try:
