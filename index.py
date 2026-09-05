@@ -29,7 +29,7 @@ bot = telebot.TeleBot(TOKEN, threaded=False)
 app = Flask(__name__)
 
 # --- CHANNELS & LINKS ---
-REQUIRED_CHATS = ['@studenthelpclub', '@studenthelpclubofficial'] 
+REQUIRED_CHATS = ['@studenthelpclub', '@studenthelpclubofficial',-1004353231367] 
 
 # 🚨 DHYAN DEIN: Agar group private hai, toh bot ko us group mein add karein aur '/chatid' type karein.
 # Phir jo ID mile (eg: -100123456789), usko yahan '@studenthelpclubofficial' ki jagah daal dein.
