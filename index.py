@@ -30,7 +30,9 @@ app = Flask(__name__)
 
 # --- CHANNELS & LINKS ---
 REQUIRED_CHATS = ['@studenthelpclub', '@studenthelpclubofficial'] 
-# Agar aapka YouTube auto-post group private hai, toh '@username' ki jagah uski Numeric ID daalein (e.g., -100123456789)
+
+# 🚨 DHYAN DEIN: Agar group private hai, toh bot ko us group mein add karein aur '/chatid' type karein.
+# Phir jo ID mile (eg: -100123456789), usko yahan '@studenthelpclubofficial' ki jagah daal dein.
 AUTO_POST_GROUP = '@studenthelpclubofficial'  
 AUTO_ALERT_CHANNEL = '@studenthelpclub'       
 
@@ -114,13 +116,83 @@ def check_membership(user_id):
     return True
 
 # ==========================================
+# 🚀 ADMIN COMMANDS (NEW: /chatid & /post_yt)
+# ==========================================
+@bot.message_handler(commands=['chatid'])
+def handle_chatid(message):
+    # Yeh command jis bhi group mein run hogi, uska Numeric ID degi
+    bot.reply_to(message, f"📌 <b>This Chat ID is:</b> <code>{message.chat.id}</code>", parse_mode='HTML')
+
+@bot.message_handler(commands=['post_yt'])
+def manual_post_youtube(message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    bot.reply_to(message, "⏳ <i>Fetching the latest video from Sheet 4...</i>", parse_mode='HTML')
+    try:
+        records_4 = sheet4.get_all_values()
+        if len(records_4) > 1:
+            row = records_4[-1] # Gets the very last row
+            if len(row) > 3 and row[3].strip() != "":
+                subject_code = str(row[0]).strip().upper()
+                yt_link = str(row[3]).strip()
+                
+                # Highly Professional Video Broadcast Message
+                yt_msg = (
+                    "🎓 <b>PREMIUM SOLVED ASSIGNMENT RELEASED</b> 🎓\n\n"
+                    "Dear Students,\n"
+                    "A new fully solved assignment tutorial has been uploaded for your academic preparation.\n\n"
+                    f"📖 <b>Subject Code:</b> <code>{subject_code}</code>\n\n"
+                    "Watch the complete tutorial to prepare your assignments perfectly and absolutely free of cost! 💯\n\n"
+                    f"📺 <b>Watch Full Video Here:</b>\n👉 {yt_link}\n\n"
+                    "💡 <i>If you found this helpful, please <b>Like</b> the video, <b>Subscribe</b> to our channel, and let us know your next Subject Code in the comments!</i>"
+                )
+                markup = InlineKeyboardMarkup(row_width=1)
+                markup.add(
+                    InlineKeyboardButton("📺 Watch & Prepare Now", url=yt_link),
+                    InlineKeyboardButton("🔔 Subscribe for Updates", url=YOUTUBE_CHANNEL_LINK)
+                )
+                bot.send_message(AUTO_POST_GROUP, yt_msg, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=False)
+                bot.send_message(message.chat.id, "✅ <b>Success!</b> The latest video has been professionally broadcasted to the group.", parse_mode='HTML')
+            else:
+                bot.send_message(message.chat.id, "❌ Error: The last row doesn't have a proper YouTube link.")
+        else:
+            bot.send_message(message.chat.id, "❌ Error: Sheet 4 is empty.")
+    except Exception as e:
+        bot.send_message(message.chat.id, f"❌ Failed to post: {e}")
+
+@bot.message_handler(commands=['broadcast'])
+def broadcast_message(message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    msg_to_broadcast = message.text.replace("/broadcast", "").strip()
+    if not msg_to_broadcast:
+        bot.reply_to(message, "⚠️ Format: `/broadcast [Message]`")
+        return
+    try:
+        users = users_sheet.col_values(1)
+        success, fail = 0, 0
+        bot.reply_to(message, "📢 Broadcast initiated...")
+        for uid in users:
+            if uid.isdigit():
+                try:
+                    bot.send_message(chat_id=int(uid), text=msg_to_broadcast, parse_mode='HTML')
+                    success += 1
+                    time.sleep(0.1)
+                except Exception:
+                    fail += 1
+        bot.send_message(message.chat.id, f"✅ <b>Broadcast Complete:</b>\nSent: {success}\nFailed: {fail}", parse_mode='HTML')
+    except Exception as e:
+        bot.reply_to(message, f"❌ Broadcast Error: {e}")
+
+
+# ==========================================
 # 🚀 BACKGROUND AUTO-TASKS (YOUTUBE & IGNOU)
 # ==========================================
 def background_auto_tasks():
     global LAST_SHEET4_ROW, LAST_IGNOU_ALERT
     while True:
         try:
-            # 1. YouTube Auto Poster
+            # 1. YouTube Auto Poster (Runs Automatically for NEW rows)
             records_4 = sheet4.get_all_values()
             current_rows = len(records_4)
             
@@ -134,16 +206,18 @@ def background_auto_tasks():
                         yt_link = str(row[3]).strip()
                         
                         yt_msg = (
-                            "🚨 🆕 <b>New Solved Assignment Uploaded!</b> 🆕 🚨\n\n"
+                            "🎓 <b>PREMIUM SOLVED ASSIGNMENT RELEASED</b> 🎓\n\n"
+                            "Dear Students,\n"
+                            "A new fully solved assignment tutorial has been uploaded for your academic preparation.\n\n"
                             f"📖 <b>Subject Code:</b> <code>{subject_code}</code>\n\n"
-                            "Aapka solved assignment hamare YouTube channel par aa gaya hai. Aap video dekh kar apna assignment aasani se aur bilkul free taiyar kar sakte hain!\n\n"
-                            f"📺 <b>Watch Video Here:</b>\n👉 {yt_link}\n\n"
-                            "💡 <i>Kripya video ko Like karein, Channel ko Subscribe karein, aur apna next Subject Code Comment box mein zaroor likhein!</i>"
+                            "Watch the complete tutorial to prepare your assignments perfectly and absolutely free of cost! 💯\n\n"
+                            f"📺 <b>Watch Full Video Here:</b>\n👉 {yt_link}\n\n"
+                            "💡 <i>If you found this helpful, please <b>Like</b> the video, <b>Subscribe</b> to our channel, and let us know your next Subject Code in the comments!</i>"
                         )
                         markup = InlineKeyboardMarkup(row_width=1)
                         markup.add(
-                            InlineKeyboardButton("📺 Watch & Write Now", url=yt_link),
-                            InlineKeyboardButton("🔔 Subscribe Channel", url=YOUTUBE_CHANNEL_LINK)
+                            InlineKeyboardButton("📺 Watch & Prepare Now", url=yt_link),
+                            InlineKeyboardButton("🔔 Subscribe for Updates", url=YOUTUBE_CHANNEL_LINK)
                         )
                         try:
                             bot.send_message(AUTO_POST_GROUP, yt_msg, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=False)
@@ -168,10 +242,10 @@ def background_auto_tasks():
                         LAST_IGNOU_ALERT = alert_text
                     elif alert_text != LAST_IGNOU_ALERT:
                         alert_msg = (
-                            "📢 <b>IGNOU LATEST OFFICIAL UPDATE</b> 📢\n\n"
+                            "📢 <b>IGNOU LATEST OFFICIAL NOTIFICATION</b> 📢\n\n"
                             f"📌 <b>Update:</b> {alert_text}\n\n"
-                            "🔗 <b>Official Link:</b>\n"
-                            f"👉 <a href='{alert_link}'>Click Here for Details</a>\n\n"
+                            "🔗 <b>Official Details Link:</b>\n"
+                            f"👉 <a href='{alert_link}'>Click Here to Read More</a>\n\n"
                             "<i>Stay updated with Student Help Club!</i>"
                         )
                         bot.send_message(AUTO_ALERT_CHANNEL, alert_msg, parse_mode='HTML', disable_web_page_preview=True)
@@ -191,18 +265,18 @@ bg_thread.start()
 def get_main_menu():
     markup = InlineKeyboardMarkup(row_width=2)
     markup.add(
-        InlineKeyboardButton("🔍 Check Result", callback_data="start_check_result"),
-        InlineKeyboardButton("📖 Get PDF", callback_data="start_assignment"),
-        InlineKeyboardButton("📚 Assignments Group", url=FINAL_GROUP_LINK),
-        InlineKeyboardButton("🌐 Official Website", url=ASSIGNMENT_WEBSITE),
-        InlineKeyboardButton("💼 Job Updates", url=JOBS_WEBSITE),
-        InlineKeyboardButton("🛠️ Utility Tools", url=UTILITY_TOOLS)
+        InlineKeyboardButton("🔍 Check Grade Card", callback_data="start_check_result"),
+        InlineKeyboardButton("📖 Order PDF Assignment", callback_data="start_assignment"),
+        InlineKeyboardButton("📚 Join Academic Group", url=FINAL_GROUP_LINK),
+        InlineKeyboardButton("🌐 Visit Official Website", url=ASSIGNMENT_WEBSITE),
+        InlineKeyboardButton("💼 Latest Job Updates", url=JOBS_WEBSITE),
+        InlineKeyboardButton("🛠️ Useful Student Tools", url=UTILITY_TOOLS)
     )
     return markup
 
 def get_back_button():
     markup = InlineKeyboardMarkup(row_width=1)
-    markup.add(InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main"))
+    markup.add(InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main"))
     return markup
 
 @bot.callback_query_handler(func=lambda call: call.data == "back_to_main")
@@ -217,7 +291,7 @@ def handle_back(call):
         bot.delete_message(call.message.chat.id, call.message.message_id)
     except:
         pass
-    bot.send_message(call.message.chat.id, "👇 <b>Main Menu:</b>\nKripya niche diye gaye menu se apna vikalp chunein:", parse_mode='HTML', reply_markup=get_main_menu())
+    bot.send_message(call.message.chat.id, "👇 <b>Main Dashboard:</b>\nPlease select an option from the menu below to proceed:", parse_mode='HTML', reply_markup=get_main_menu())
 
 def send_join_message(chat_id):
     markup = InlineKeyboardMarkup(row_width=1)
@@ -226,10 +300,9 @@ def send_join_message(chat_id):
     markup.add(InlineKeyboardButton("✅ I Have Joined (Verify)", callback_data="verify_join"))
     
     join_msg = (
-        "👋 <b>Welcome to Student Help Club Official Bot!</b>\n\n"
-        "📚 IGNOU ke sabhi Solved Assignments, Academic Updates, aur Jobs ki jankari prapt karne ke liye, "
-        "kripya hamare official channels ko join karein.\n\n"
-        "👇 <i>Neeche diye gaye buttons par click karke join karein aur '✅ I Have Joined' par click karein.</i>"
+        "👋 <b>Welcome to Student Help Club Official Portal!</b>\n\n"
+        "To access IGNOU Solved Assignments, Academic Alerts, and Premium Services, please join our official communities.\n\n"
+        "👇 <i>Click the buttons below to join, then click 'I Have Joined' to verify your status.</i>"
     )
     bot.send_message(chat_id, join_msg, reply_markup=markup, parse_mode='HTML')
 
@@ -239,9 +312,9 @@ def send_welcome(message):
     user_id = message.from_user.id
     if check_membership(user_id):
         welcome_text = (
-            "🌟 <b>Welcome Back to Student Help Club Portal!</b>\n\n"
-            "Aapke sabhi academic solutions ke liye ek hi platform. "
-            "Kripya niche diye gaye options mein se apni zaroorat ke anusaar select karein:"
+            "🎓 <b>Welcome to Student Help Club Premium Bot!</b>\n\n"
+            "Your ultimate destination for IGNOU Academic Solutions. We provide verified solved assignments, instant grade checks, and career updates.\n\n"
+            "Please select your required service from the menu below:"
         )
         bot.send_message(message.chat.id, welcome_text, parse_mode='HTML', reply_markup=get_main_menu())
     else:
@@ -256,28 +329,28 @@ def verify_callback(call):
             bot.delete_message(call.message.chat.id, call.message.message_id)
         except Exception:
             pass 
-        bot.send_message(call.message.chat.id, "✅ <b>Verification Successful!</b>\n\nDhanyawad! Ab aap verified member hain. 🎉\n👇 <i>Apni service select karein:</i>", parse_mode='HTML', reply_markup=get_main_menu())
+        bot.send_message(call.message.chat.id, "✅ <b>Access Verified!</b>\n\nThank you for joining our community. 🎉\n👇 <i>Please choose a service from the dashboard:</i>", parse_mode='HTML', reply_markup=get_main_menu())
     else:
-        bot.answer_callback_query(call.id, "❌ Kripya pehle dono channels join karein!", show_alert=True)
+        bot.answer_callback_query(call.id, "❌ Please ensure you have joined both channels before verifying!", show_alert=True)
 
 @bot.callback_query_handler(func=lambda call: call.data == "start_check_result")
 def prompt_enrollment(call):
     user_id = call.from_user.id
     if not check_membership(user_id):
-        bot.answer_callback_query(call.id, "❌ Kripya channels join karein!", show_alert=True)
+        bot.answer_callback_query(call.id, "❌ Access Denied! Please join our channels first.", show_alert=True)
         return
     WAITING_FOR_ENROLLMENT.add(user_id)
     try:
         bot.delete_message(call.message.chat.id, call.message.message_id)
     except:
         pass
-    bot.send_message(call.message.chat.id, "📝 <b>IGNOU Result Portal</b>\n\nKripya apna 10-digit <b>Enrollment Number</b> yahan type karke bhejein:", parse_mode='HTML', reply_markup=get_back_button())
+    bot.send_message(call.message.chat.id, "🎓 <b>IGNOU Result & Grade Card Portal</b>\n\nWelcome to the official result checking system.\n\nPlease enter your 9 or 10-digit <b>Enrollment Number</b> below:", parse_mode='HTML', reply_markup=get_back_button())
 
 @bot.callback_query_handler(func=lambda call: call.data == "start_assignment")
 def prompt_course_code(call):
     user_id = call.from_user.id
     if not check_membership(user_id):
-        bot.answer_callback_query(call.id, "❌ Kripya channels join karein!", show_alert=True)
+        bot.answer_callback_query(call.id, "❌ Access Denied! Please join our channels first.", show_alert=True)
         return
     WAITING_FOR_COURSE.add(user_id)
     try:
@@ -285,36 +358,12 @@ def prompt_course_code(call):
     except:
         pass
     instruction_msg = (
-        "📖 <b>IGNOU Solved Assignment Portal</b>\n\n"
-        "Kripya apna <b>Course Code</b> yahan type karke bhejein.\n\n"
-        "📌 <i>Multiple subjects ek sath mangwane ke liye format:</i> <code>BPSC 110, BCOC 134, BHIC 132</code>"
+        "📚 <b>Premium Solved Assignment Delivery</b>\n\n"
+        "Please enter your required <b>Course Code(s)</b> below to check availability.\n\n"
+        "📌 <i>Pro Tip: To order multiple subjects at once, separate them with commas (e.g., BPSC 110, BCOC 134, BHIC 132).</i>"
     )
     bot.send_message(call.message.chat.id, instruction_msg, parse_mode='HTML', reply_markup=get_back_button())
 
-@bot.message_handler(commands=['broadcast'])
-def broadcast_message(message):
-    if message.from_user.id != ADMIN_ID:
-        bot.reply_to(message, "❌ Aapko yeh command use karne ki permission nahi hai.")
-        return
-    msg_to_broadcast = message.text.replace("/broadcast", "").strip()
-    if not msg_to_broadcast:
-        bot.reply_to(message, "⚠️ Kripya message likhein. Format: `/broadcast [Message]`")
-        return
-    try:
-        users = users_sheet.col_values(1)
-        success, fail = 0, 0
-        bot.reply_to(message, "📢 Broadcast started...")
-        for uid in users:
-            if uid.isdigit():
-                try:
-                    bot.send_message(chat_id=int(uid), text=msg_to_broadcast, parse_mode='HTML')
-                    success += 1
-                    time.sleep(0.1)
-                except Exception:
-                    fail += 1
-        bot.send_message(message.chat.id, f"✅ <b>Broadcast Report:</b>\nSent: {success}\nFailed: {fail}", parse_mode='HTML')
-    except Exception as e:
-        bot.reply_to(message, f"❌ Broadcast Error: {e}")
 
 # ==========================================
 # 📝 IGNOU RESULT FETCHING
@@ -357,16 +406,16 @@ def fetch_ignou_result(enr_no, chat_id):
 
     if success and os.path.exists(file_name):
         caption_text = (
-            f"✅ <b>Result for Enrollment:</b> <code>{enr_no}</code>\n\n"
-            f"🚀 <i>Powered by:</i> <b>Student Help Club</b>\n"
-            f"📢 <b>Join Channel:</b> @studenthelpclub\n"
+            f"✅ <b>Result Generated for Enrollment:</b> <code>{enr_no}</code>\n\n"
+            f"🚀 <i>Service Powered by:</i> <b>Student Help Club</b>\n"
+            f"📢 <b>Official Channel:</b> @studenthelpclub\n"
             f"🌐 <b>Website:</b> studenthelpclub.in"
         )
         with open(file_name, 'rb') as photo:
             bot.send_photo(chat_id, photo=photo, caption=caption_text, parse_mode="HTML")
         os.remove(file_name)
     else:
-        bot.send_message(chat_id, "❌ Server temporary down hai. Kripya kuch samay baad punah prayas karein.")
+        bot.send_message(chat_id, "⚠️ We are currently unable to connect to the IGNOU servers due to high traffic. Please try again later.")
 
 # ==========================================
 # 🔀 CALLBACK HANDLERS (FLOW LOGIC)
@@ -378,7 +427,7 @@ def handle_flow(call):
     # --- ADMIN REJECT LOGIC ---
     if call.data == "admin_reject":
         if call.from_user.id != ADMIN_ID:
-            bot.answer_callback_query(call.id, "❌ Sirf admin ke liye!", show_alert=True)
+            bot.answer_callback_query(call.id, "❌ Restricted Action!", show_alert=True)
             return
             
         caption = call.message.caption
@@ -392,28 +441,28 @@ def handle_flow(call):
         target_uid = int(user_id_match.group(1))
         
         reject_msg = (
-            "❌ <b>Payment Verification Failed!</b>\n\n"
-            "Aapka bheja gaya screenshot <b>invalid ya fake</b> paya gaya hai. Isliye aapki PDF request cancel kar di gayi hai.\n\n"
-            "Agar aapne payment successfully kiya hai, toh kripya sahi screenshot bhejein ya admin se sampark karein:\n"
+            "⚠️ <b>Payment Verification Unsuccessful</b>\n\n"
+            "Dear Student,\nWe could not verify the payment screenshot you provided. It appears to be invalid or incomplete, and your PDF delivery has been paused.\n\n"
+            "If the amount has been successfully deducted from your bank account, please upload a clear, correct receipt or contact our support desk immediately for manual assistance:\n"
             f"👉 <b>{ADMIN_USERNAME_LINK}</b>"
         )
         reject_markup = InlineKeyboardMarkup(row_width=1)
         reject_markup.add(
-            InlineKeyboardButton("📞 Contact Admin", url=ADMIN_USERNAME_LINK),
-            InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main")
+            InlineKeyboardButton("🎧 Contact Admin Support", url=ADMIN_USERNAME_LINK),
+            InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main")
         )
         try:
             bot.send_message(target_uid, reject_msg, parse_mode='HTML', disable_web_page_preview=True, reply_markup=reject_markup)
-            bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption=caption + "\n\n<b>[STATUS: REJECTED ❌]</b>", parse_mode='HTML')
+            bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption=caption + "\n\n<b>[STATUS: DECLINED ❌]</b>", parse_mode='HTML')
         except Exception:
             pass
-        bot.answer_callback_query(call.id, "❌ Payment Rejected and User Notified!")
+        bot.answer_callback_query(call.id, "Payment Rejected and User Notified!")
         return
 
     # --- ADMIN VERIFICATION & DIRECT PDF SEND LOGIC ---
     if call.data == "admin_verify":
         if call.from_user.id != ADMIN_ID:
-            bot.answer_callback_query(call.id, "❌ Sirf admin ke liye!", show_alert=True)
+            bot.answer_callback_query(call.id, "❌ Restricted Action!", show_alert=True)
             return
             
         caption = call.message.caption
@@ -431,7 +480,7 @@ def handle_flow(call):
         courses_str = courses_match.group(1)
         medium_str = medium_match.group(1).upper()
         
-        bot.answer_callback_query(call.id, "⏳ PDFs direct bheje ja rahe hain...")
+        bot.answer_callback_query(call.id, "Processing PDF Delivery...")
         
         try:
             records_sheet1 = sheet1.get_all_values()
@@ -450,7 +499,7 @@ def handle_flow(call):
                             break
                             
             if pdf_list:
-                bot.send_message(target_uid, "🎉 <b>Payment Verified Successfully!</b>\n\n⏳ <i>Aapke PDFs aa rahe hain, kripya prateeksha karein...</i>", parse_mode='HTML')
+                bot.send_message(target_uid, "🎉 <b>Payment Verified Successfully!</b>\n\n⏳ <i>Our servers are preparing your high-quality PDFs for direct delivery. Please wait a few seconds...</i>", parse_mode='HTML')
                 
                 for course_name, drive_url in pdf_list:
                     try:
@@ -465,33 +514,33 @@ def handle_flow(call):
                                 bot.send_document(
                                     target_uid, 
                                     document=(f"{safe_name}.pdf", res.content), 
-                                    caption=f"📚 <b>{course_name}</b>\n✅ 100% Verified Solved Assignment", 
+                                    caption=f"📚 <b>{course_name}</b>\n✅ Premium Solved Assignment (100% Verified)", 
                                     parse_mode='HTML'
                                 )
                                 continue
                                 
-                        fallback_msg = f"🔗 <b>{course_name}</b>\n👉 <a href='{drive_url}'>Click Here to Download PDF</a>"
+                        fallback_msg = f"🔗 <b>{course_name}</b>\n👉 <a href='{drive_url}'>Click Here to Download PDF from Drive</a>"
                         bot.send_message(target_uid, fallback_msg, parse_mode='HTML', disable_web_page_preview=True)
                         
                     except Exception:
-                        fallback_msg = f"🔗 <b>{course_name}</b>\n👉 <a href='{drive_url}'>Click Here to Download PDF</a>"
+                        fallback_msg = f"🔗 <b>{course_name}</b>\n👉 <a href='{drive_url}'>Click Here to Download PDF from Drive</a>"
                         bot.send_message(target_uid, fallback_msg, parse_mode='HTML', disable_web_page_preview=True)
                 
-                bot.send_message(target_uid, "✅ <b>Sabhi PDFs bhej diye gaye hain!</b>\nThank you for using Student Help Club!", parse_mode='HTML', reply_markup=get_back_button())
+                bot.send_message(target_uid, "✅ <b>Delivery Complete!</b>\nAll requested files have been successfully sent. We wish you the best in your studies! 🌟", parse_mode='HTML', reply_markup=get_back_button())
                 
                 try:
-                    bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption=caption + "\n\n<b>[STATUS: VERIFIED & SENT DIRECTLY ✅]</b>", parse_mode='HTML')
+                    bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption=caption + "\n\n<b>[STATUS: APPROVED & DELIVERED ✅]</b>", parse_mode='HTML')
                 except Exception:
                     pass
             else:
-                bot.answer_callback_query(call.id, "❌ Links Sheet mein nahi mile!", show_alert=True)
+                bot.answer_callback_query(call.id, "❌ Error: Could not locate links in database.", show_alert=True)
         except Exception as e:
             bot.answer_callback_query(call.id, f"❌ Error: {e}", show_alert=True)
         return
 
     # --- USER FLOW LOGIC ---
     if user_id not in USER_STATE:
-        bot.answer_callback_query(call.id, "❌ Session expired. Kripya Main Menu se restart karein.", show_alert=True)
+        bot.answer_callback_query(call.id, "❌ Session Expired. Please restart from Main Menu.", show_alert=True)
         return
         
     order = USER_STATE[user_id]
@@ -520,12 +569,12 @@ def handle_flow(call):
                         r_medium = str(row[1]).strip().upper() if len(row) > 1 and str(row[1]).strip() != "" else "HINDI"
                         
                         if s_term in r_course and medium == r_medium:
-                            found_lines.append(f"• <b>{row[0]}</b> - ✅ Available")
+                            found_lines.append(f"• <b>{row[0]}</b> - ✅ Ready for Delivery")
                             matched = True
                             found_valid = True
                             break
                 if not matched:
-                    found_lines.append(f"• <b>{course_input}</b> - ❌ Not Available")
+                    found_lines.append(f"• <b>{course_input}</b> - ❌ Not in Database")
                     
             if found_valid:
                 total_price = len(courses) * PRICE_PER_PDF
@@ -533,24 +582,24 @@ def handle_flow(call):
                 
                 markup = InlineKeyboardMarkup(row_width=2)
                 markup.add(
-                    InlineKeyboardButton(f"💰 Paid PDF (₹{total_price})", callback_data="choice_paid"),
-                    InlineKeyboardButton("🆓 Free YouTube", callback_data="choice_free")
+                    InlineKeyboardButton(f"💳 Proceed to Checkout (₹{total_price})", callback_data="choice_paid"),
+                    InlineKeyboardButton("🆓 Watch Free Tutorial", callback_data="choice_free")
                 )
-                markup.add(InlineKeyboardButton("📄 View Sample (First 3 Pages)", callback_data="view_sample"))
-                markup.add(InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main"))
+                markup.add(InlineKeyboardButton("📄 View Live Quality Sample", callback_data="view_sample"))
+                markup.add(InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main"))
                 
                 reply_text = (
-                    f"📋 <b>Aapke Courses ki Availability ({medium}):</b>\n\n" +
+                    f"📋 <b>Order Availability Report ({medium}):</b>\n\n" +
                     "\n".join(found_lines) + "\n\n" +
-                    f"💵 <b>Total Payable Amount:</b> ₹{total_price}\n\n"
-                    "👇 <i>Kripya apna option select karein:</i>"
+                    f"💵 <b>Total Invoice Amount:</b> ₹{total_price}\n\n"
+                    "👇 <i>Please choose your preferred method to acquire the assignments:</i>"
                 )
                 bot.send_message(user_id, reply_text, parse_mode='HTML', reply_markup=markup)
             else:
                 markup = get_back_button()
-                bot.send_message(user_id, f"❌ Maaf kijiyega, aapke courses <b>{medium}</b> medium mein available nahi hain.", parse_mode='HTML', reply_markup=markup)
+                bot.send_message(user_id, f"⚠️ We apologize, but the requested courses are currently unavailable in <b>{medium}</b> medium.", parse_mode='HTML', reply_markup=markup)
         except Exception as e:
-            bot.send_message(user_id, f"❌ Error: {e}")
+            bot.send_message(user_id, f"❌ System Error: {e}")
 
     # 🔥 LIVE 3-PAGE PDF CROPPING LOGIC 🔥
     elif call.data == "view_sample":
@@ -559,7 +608,7 @@ def handle_flow(call):
         except:
             pass
             
-        msg = bot.send_message(user_id, "⏳ <i>Aapke PDF ka Sample (Pehle 3 Pages) taiyar kiya ja raha hai... kripya 10-15 seconds prateeksha karein.</i>", parse_mode='HTML')
+        msg = bot.send_message(user_id, "⏳ <i>Generating a live sample from our secure database... This takes about 10-15 seconds. Please wait.</i>", parse_mode='HTML')
         
         courses = order.get('raw_courses', [])
         medium = order.get('medium', 'HINDI')
@@ -597,14 +646,14 @@ def handle_flow(call):
                                     safe_name = row[0].replace(' ', '_')
                                     
                                     markup = InlineKeyboardMarkup(row_width=1)
-                                    markup.add(InlineKeyboardButton("💳 Continue to Buy Full PDF", callback_data="choice_paid"))
-                                    markup.add(InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main"))
+                                    markup.add(InlineKeyboardButton("💳 Continue to Full Checkout", callback_data="choice_paid"))
+                                    markup.add(InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main"))
                                     
                                     bot.delete_message(user_id, msg.message_id)
                                     bot.send_document(
                                         user_id,
                                         document=(f"Sample_{safe_name}.pdf", output_pdf.getvalue()),
-                                        caption=f"📄 <b>{row[0]} Ka Sample</b>\n✅ 100% Quality Assurance.\n\n👇 <i>Agar quality pasand aayi toh abhi full PDF khareedein:</i>",
+                                        caption=f"📄 <b>Preview: {row[0]}</b>\n✅ 100% Quality Assurance & High Accuracy.\n\n👇 <i>If you are satisfied with the quality, you may proceed to purchase the complete document:</i>",
                                         parse_mode='HTML',
                                         reply_markup=markup
                                     )
@@ -622,28 +671,28 @@ def handle_flow(call):
             except:
                 pass
             markup = InlineKeyboardMarkup(row_width=1)
-            markup.add(InlineKeyboardButton("💳 Continue to Buy Paid PDF", callback_data="choice_paid"))
-            markup.add(InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main"))
-            bot.send_message(user_id, "❌ Maaf kijiyega, is PDF ka file format alag hone ke kaaran automatically sample generate nahi ho saka.\n\nPar hamari quality 100% verified hai. Aap aasaani se apna PDF purchase kar sakte hain.", reply_markup=markup)
+            markup.add(InlineKeyboardButton("💳 Proceed to Checkout", callback_data="choice_paid"))
+            markup.add(InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main"))
+            bot.send_message(user_id, "⚠️ We were unable to automatically generate a sample for this specific format. However, rest assured our material carries a 100% Quality Guarantee.", reply_markup=markup)
             
     elif call.data == "choice_paid":
         total = order.get('total', 20)
         markup = InlineKeyboardMarkup(row_width=1)
-        markup.add(InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main"))
+        markup.add(InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main"))
         
         payment_caption = (
-            "💳 <b>Secure Payment Gateway - Student Help Club</b>\n\n"
-            f"• <b>Total Payable Amount:</b> <b>₹{total}</b>\n"
-            f"• <b>UPI ID:</b> <code>{UPI_ID}</code>\n\n"
-            "📌 <b>Next Step:</b>\n"
-            "Payment successful hone ke baad apna <b>Screenshot (Photo) yahan chat mein bhejein.</b>\n"
-            "(Bot automatically aapka screenshot verification ke liye Admin ko bhej dega)."
+            "💳 <b>Secure Payment Gateway</b>\n\n"
+            "Please complete your payment to initiate the automatic delivery of your assignments.\n\n"
+            f"🔹 <b>Total Payable Amount:</b> <b>₹{total}</b>\n"
+            f"🔹 <b>Official UPI ID:</b> <code>{UPI_ID}</code>\n\n"
+            "📌 <b>Next Steps:</b>\n"
+            "Once the payment is successful, upload the clear <b>Payment Screenshot</b> directly in this chat.\n"
+            "<i>(The system will automatically process your receipt and deliver your PDFs instantly upon admin verification).</i>"
         )
         try:
             bot.delete_message(call.message.chat.id, call.message.message_id)
         except:
             pass
-        # 🔥 QR CODE MESSAGE ID SAVE KIYA JAA RAHA HAI TAAKI DELETE HO SAKE 🔥
         sent_qr = bot.send_photo(user_id, photo=QR_CODE_URL, caption=payment_caption, parse_mode='HTML', reply_markup=markup)
         USER_STATE[user_id]['qr_msg_id'] = sent_qr.message_id
         
@@ -678,35 +727,35 @@ def handle_flow(call):
             pass
 
         markup = InlineKeyboardMarkup(row_width=1)
-        markup.add(InlineKeyboardButton("📢 Join Telegram Assignment Group", url=FINAL_GROUP_LINK))
+        markup.add(InlineKeyboardButton("📢 Join Discussion Community", url=FINAL_GROUP_LINK))
         
         if len(courses) == 1 and specific_yt_link:
-            markup.add(InlineKeyboardButton("📺 Watch Video", url=specific_yt_link))
-            markup.add(InlineKeyboardButton("🔔 Subscribe Channel", url=YOUTUBE_CHANNEL_LINK))
+            markup.add(InlineKeyboardButton("📺 Watch Video Tutorial", url=specific_yt_link))
+            markup.add(InlineKeyboardButton("🔔 Subscribe to Channel", url=YOUTUBE_CHANNEL_LINK))
             reply = (
-                "🆓 <b>Free IGNOU Solved Assignment Access</b>\n\n"
-                f"Aap <b>{courses[0]} ({medium})</b> ka assignment bilkul nishulk (Free) mein video dekh kar likh sakte hain.\n\n"
-                "👇 <i>Neeche diye gaye button par click karke video dekhein:</i>"
+                "🆓 <b>Free Academic Resource Portal</b>\n\n"
+                f"You can prepare your <b>{courses[0]} ({medium})</b> assignment absolutely free by watching our detailed video tutorial.\n\n"
+                "👇 <i>Click below to start watching:</i>"
             )
             
         elif yt_links_text:
-            markup.add(InlineKeyboardButton("🔔 Subscribe Channel", url=YOUTUBE_CHANNEL_LINK))
+            markup.add(InlineKeyboardButton("🔔 Subscribe to Channel", url=YOUTUBE_CHANNEL_LINK))
             reply = (
-                "🆓 <b>Free IGNOU Solved Assignment Access</b>\n\n"
-                "Aapke courses ke video links niche diye gaye hain:\n\n"
+                "🆓 <b>Free Academic Resource Portal</b>\n\n"
+                "We have found the following video tutorials for your requested subjects:\n\n"
                 f"{yt_links_text}\n"
-                "👇 <i>Kripya hamara group join karein aur channel ko subscribe karein:</i>"
+                "👇 <i>Please join our community channels for further support:</i>"
             )
             
         else:
             markup.add(InlineKeyboardButton("📺 Visit YouTube Channel", url=YOUTUBE_CHANNEL_LINK))
             reply = (
-                "🆓 <b>Free IGNOU Solved Assignment Access</b>\n\n"
-                "Is course ka specific video abhi sheet mein update nahi hua hai, par aap hamare YouTube channel par directly search kar sakte hain.\n\n"
-                "👇 <i>Neeche diye gaye buttons par click karein:</i>"
+                "🆓 <b>Free Academic Resource Portal</b>\n\n"
+                "The specific video tutorial for this course is currently not mapped in our database. However, you can search for it directly on our YouTube channel.\n\n"
+                "👇 <i>Click below to explore our video library:</i>"
             )
 
-        markup.add(InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main"))
+        markup.add(InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main"))
         bot.send_message(user_id, reply, parse_mode='HTML', disable_web_page_preview=True, reply_markup=markup)
 
 # ==========================================
@@ -739,7 +788,6 @@ def continuous_check(message):
         else:
             if message.content_type == 'photo':
                 if ADMIN_ID:
-                    # 🔥 QR CODE DELETION LOGIC IMPLEMENTED HERE 🔥
                     if user_id in USER_STATE and 'qr_msg_id' in USER_STATE[user_id]:
                         try:
                             bot.delete_message(chat_id=user_id, message_id=USER_STATE[user_id]['qr_msg_id'])
@@ -756,33 +804,33 @@ def continuous_check(message):
                         
                     try:
                         forward_caption = (
-                            f"🚨 <b>New Payment Screenshot!</b>\n\n"
-                            f"👤 <b>User Name:</b> {message.from_user.first_name}\n"
-                            f"🆔 <b>UserID:</b> {user_id}\n"
-                            f"📚 <b>Courses:</b> {c_str}\n"
-                            f"🗣️ <b>Medium:</b> {med_str}\n\n"
-                            "Kripya payment verify karke niche diye gaye button par click karein:"
+                            f"🚨 <b>INCOMING PAYMENT RECEIPT!</b>\n\n"
+                            f"👤 <b>Client Name:</b> {message.from_user.first_name}\n"
+                            f"🆔 <b>System ID:</b> <code>{user_id}</code>\n"
+                            f"📚 <b>Selected Courses:</b> {c_str}\n"
+                            f"🗣️ <b>Medium Selected:</b> {med_str}\n\n"
+                            "Admin: Please verify the transaction and select an action below:"
                         )
                         markup = InlineKeyboardMarkup()
                         markup.add(
-                            InlineKeyboardButton("✅ Verify & Send PDFs", callback_data="admin_verify"),
-                            InlineKeyboardButton("❌ Reject Payment", callback_data="admin_reject")
+                            InlineKeyboardButton("✅ Verify Payment & Send PDFs", callback_data="admin_verify"),
+                            InlineKeyboardButton("❌ Decline Payment", callback_data="admin_reject")
                         )
                         
                         bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=forward_caption, parse_mode='HTML', reply_markup=markup)
                         
-                        bot.send_message(message.chat.id, "✅ Aapka payment screenshot admin ke paas bhej diya gaya hai.\n⏳ <b>Max Wait Time: 30 Minutes.</b>\nVerification complete hote hi PDF aapko yahi mil jayega!", parse_mode='HTML', reply_to_message_id=message.message_id, reply_markup=get_back_button())
+                        bot.send_message(message.chat.id, "✅ <b>Screenshot Uploaded Successfully!</b>\n\nYour payment is currently under review by our administrators.\n⏳ <b>Estimated Verification Time: Under 30 Minutes.</b>\n\nOnce verified, the premium PDFs will be delivered securely to this chat window.", parse_mode='HTML', reply_to_message_id=message.message_id, reply_markup=get_back_button())
                     except Exception as e:
-                        bot.reply_to(message, "❌ Screenshot bhejne mein error aayi. Kripya @studenthelpclub1 par contact karein.")
+                        bot.reply_to(message, "❌ An error occurred during transmission. Please contact our support team at @studenthelpclub1.")
                 elif user_id not in USER_STATE:
-                    bot.reply_to(message, "⚠️ Kripya pehle Menu se course select karein aur phir screenshot bhejein.", reply_markup=get_back_button())
+                    bot.reply_to(message, "⚠️ System Error: It appears you have not selected any subjects yet. Please select your courses from the Main Menu before uploading a receipt.", reply_markup=get_back_button())
                 return
 
             if message.content_type == 'text' and not message.text.startswith('/'):
                 if user_id in WAITING_FOR_ENROLLMENT:
                     WAITING_FOR_ENROLLMENT.remove(user_id)
                     enr_number = message.text.strip()
-                    bot.send_message(message.chat.id, f"🔍 <b>Enrollment Number ({enr_number}) received!</b>\n\nSystem result fetch kar raha hai, kripya prateeksha karein...", parse_mode='HTML')
+                    bot.send_message(message.chat.id, f"🔍 <b>Processing Request...</b>\n\n<b>Enrollment Number:</b> <code>{enr_number}</code>\n\n<i>Fetching your latest grade card securely from IGNOU servers. Please wait a few moments...</i>", parse_mode='HTML')
                     fetch_ignou_result(enr_number, message.chat.id)
                 
                 elif user_id in WAITING_FOR_COURSE:
@@ -797,16 +845,16 @@ def continuous_check(message):
                         InlineKeyboardButton("🇮🇳 Hindi Medium", callback_data="set_med_HINDI"),
                         InlineKeyboardButton("🇬🇧 English Medium", callback_data="set_med_ENGLISH")
                     )
-                    markup.add(InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main"))
+                    markup.add(InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main"))
                     
                     bot.send_message(
                         message.chat.id,
-                        "🗣️ <b>Kripya apna Medium select karein:</b>\n\nAapko kis medium mein assignments chahiye?",
+                        "🗣️ <b>Select Academic Medium:</b>\n\nPlease select the medium/language in which you require the assignments:",
                         parse_mode='HTML',
                         reply_markup=markup
                     )
                 else:
-                     bot.send_message(message.chat.id, "👇 Kripya niche diye gaye menu se apna vikalp chunein:", parse_mode='HTML', reply_markup=get_main_menu())
+                     bot.send_message(message.chat.id, "👇 Please select a service from the official Dashboard below:", parse_mode='HTML', reply_markup=get_main_menu())
 
 # ==========================================
 # 🌐 WEBHOOK SETTINGS
@@ -818,7 +866,7 @@ def index():
         update = telebot.types.Update.de_json(json_string)
         bot.process_new_updates([update])
         return 'OK', 200
-    return 'Student Help Club Bot is active and running 24/7!', 200
+    return 'Student Help Club Corporate Server is actively running!', 200
 
 if __name__ == "__main__":
     # WARNING: Yahan apne Render ka link zaroor daalein 
@@ -828,7 +876,7 @@ if __name__ == "__main__":
         bot.remove_webhook()
         time.sleep(1)
         bot.set_webhook(url=RENDER_URL)
-        print(f"Webhook set successfully to: {RENDER_URL}")
+        print(f"Webhook securely established at: {RENDER_URL}")
     except Exception as e:
         print(f"Webhook setting failed: {e}")
         
