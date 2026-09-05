@@ -50,6 +50,7 @@ UTILITY_TOOLS = "https://shctools.in/"
 QR_CODE_URL = "https://raw.githubusercontent.com/studenthelpclub/files/main/qrcode.jpg"
 UPI_ID = "studenthelpclub@naviaxis"
 PRICE_PER_PDF = 20  
+POINTS_PER_REFERRAL = 5  # Ek referral par milne wale points
 
 # --- STATE VARIABLES ---
 WAITING_FOR_ENROLLMENT = set()
@@ -67,6 +68,7 @@ try:
     client = gspread.authorize(creds)
 
     user_doc = client.open("Student Help Club Data")
+    # Users sheet columns expected: [UserID, Name, Username, Mobile, Points, ReferredBy]
     users_sheet = user_doc.worksheet("Users")
 
     master_doc = client.open("Master Sheet")
@@ -76,7 +78,7 @@ except Exception as e:
     print(f"Google Sheets Connection Error: {e}")
 
 # ==========================================
-# 🛠️ HELPER FUNCTIONS
+# 🛠️ HELPER FUNCTIONS (REFERRAL & POINTS)
 # ==========================================
 def clean_string(text):
     return re.sub(r'[^A-Z0-9]', '', str(text).upper())
@@ -97,16 +99,61 @@ def is_admin(chat_id, user_id):
     except:
         return False
 
-def save_user(message, mobile="N/A"):
+def get_user_row(user_id_str):
     try:
-        user_id = str(message.from_user.id)
-        existing_users = users_sheet.col_values(1)
-        if user_id not in existing_users:
-            name = message.from_user.first_name or "N/A"
-            username = message.from_user.username or "N/A"
-            users_sheet.append_row([user_id, name, username, mobile])
+        cell = users_sheet.find(user_id_str)
+        if cell:
+            return cell.row
     except Exception:
         pass
+    return None
+
+def get_user_points(user_id_str):
+    try:
+        row = get_user_row(user_id_str)
+        if row:
+            val = users_sheet.cell(row, 5).value  # Column 5: Points
+            return int(val) if val and val.isdigit() else 0
+    except Exception:
+        pass
+    return 0
+
+def update_user_points(user_id_str, points):
+    try:
+        row = get_user_row(user_id_str)
+        if row:
+            users_sheet.update_cell(row, 5, str(points))
+    except Exception:
+        pass
+
+def save_user(message, referrer_id=None):
+    try:
+        user_id = str(message.from_user.id)
+        col_vals = users_sheet.col_values(1)
+        if user_id not in col_vals:
+            name = message.from_user.first_name or "N/A"
+            username = message.from_user.username or "N/A"
+            ref_by = str(referrer_id) if referrer_id and referrer_id != user_id else "None"
+            # Format: [UserID, Name, Username, Mobile, Points, ReferredBy]
+            users_sheet.append_row([user_id, name, username, "N/A", "0", ref_by])
+            
+            # Agar valid referrer hai, toh usko points do
+            if referrer_id and referrer_id != user_id:
+                ref_row = get_user_row(str(referrer_id))
+                if ref_row:
+                    current_pts = get_user_points(str(referrer_id))
+                    new_pts = current_pts + POINTS_PER_REFERRAL
+                    update_user_points(str(referrer_id), new_pts)
+                    try:
+                        bot.send_message(
+                            int(referrer_id),
+                            f"🎉 <b>Referral Bonus Credited!</b>\n\nNaye student ne aapke link se join kiya hai. Aapke account mein <b>+{POINTS_PER_REFERRAL} Points</b> add kar diye gaye hain! 🎁",
+                            parse_mode='HTML'
+                        )
+                    except:
+                        pass
+    except Exception as e:
+        print(f"Save user error: {e}")
 
 def check_membership(user_id):
     for chat_id in REQUIRED_CHATS:
@@ -119,7 +166,7 @@ def check_membership(user_id):
     return True
 
 # ==========================================
-# 🚀 ADMIN COMMANDS (/chatid & /post_yt)
+# 🚀 ADMIN COMMANDS (/chatid, /post_yt, /broadcast)
 # ==========================================
 @bot.message_handler(commands=['chatid'])
 def handle_chatid(message):
@@ -128,7 +175,7 @@ def handle_chatid(message):
 @bot.message_handler(commands=['post_yt'])
 def manual_post_youtube(message):
     if message.from_user.id != ADMIN_ID: return
-    bot.reply_to(message, "⏳ <i>Scanning Sheet 4 from top to bottom for the latest YouTube Link...</i>", parse_mode='HTML')
+    bot.reply_to(message, "⏳ <i>Scanning Sheet 4 for the latest YouTube Link...</i>", parse_mode='HTML')
     try:
         records_4 = sheet4.get_all_values()
         found_row = None
@@ -163,10 +210,10 @@ def manual_post_youtube(message):
                     success_count += 1
                 except Exception: pass
                     
-            bot.send_message(message.chat.id, f"✅ <b>Success!</b> The latest video has been broadcasted to {success_count} groups/channels.", parse_mode='HTML')
+            bot.send_message(message.chat.id, f"✅ <b>Success!</b> Broadcasted to {success_count} groups/channels.", parse_mode='HTML')
             POSTED_YT_LINKS.add(yt_link)
         else:
-            bot.send_message(message.chat.id, "❌ Error: No valid YouTube link found in Column D.")
+            bot.send_message(message.chat.id, "❌ Error: No valid YouTube link found.")
     except Exception as e:
         bot.send_message(message.chat.id, f"❌ Failed to post: {e}")
 
@@ -264,13 +311,14 @@ bg_thread = threading.Thread(target=background_auto_tasks, daemon=True)
 bg_thread.start()
 
 # ==========================================
-# 📱 MENUS & NAVIGATION
+# 📱 MENUS & NAVIGATION (REFER & EARN ADDED)
 # ==========================================
 def get_main_menu():
     markup = InlineKeyboardMarkup(row_width=2)
     markup.add(
         InlineKeyboardButton("🔍 IGNOU Result", callback_data="start_check_result"),
         InlineKeyboardButton("📖 Order PDF Assignment", callback_data="start_assignment"),
+        InlineKeyboardButton("🎁 Refer & Earn", callback_data="refer_earn"),
         InlineKeyboardButton("📚 Join Academic Group", url=FINAL_GROUP_LINK),
         InlineKeyboardButton("🌐 Visit Official Website", url=ASSIGNMENT_WEBSITE),
         InlineKeyboardButton("💼 Latest Job Updates", url=JOBS_WEBSITE),
@@ -310,8 +358,21 @@ def send_join_message(chat_id):
 
 @bot.message_handler(commands=['start', 'restart'])
 def send_welcome(message):
-    save_user(message)
     user_id = message.from_user.id
+    text = message.text
+    referrer_id = None
+    
+    # Check for referral payload (eg: /start ref_1238405133)
+    if "ref_" in text:
+        try:
+            parts = text.split("ref_")
+            if len(parts) > 1:
+                referrer_id = parts[1].strip()
+        except:
+            pass
+
+    save_user(message, referrer_id=referrer_id)
+
     if check_membership(user_id):
         welcome_text = (
             "🎓 <b>Welcome to Student Help Club Premium Bot!</b>\n\n"
@@ -321,6 +382,33 @@ def send_welcome(message):
         bot.send_message(message.chat.id, welcome_text, parse_mode='HTML', reply_markup=get_main_menu())
     else:
         send_join_message(message.chat.id)
+
+@bot.callback_query_handler(func=lambda call: call.data == "refer_earn")
+def handle_refer_earn(call):
+    user_id = call.from_user.id
+    try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
+    except: pass
+    
+    bot_info = bot.get_me()
+    bot_username = bot_info.username
+    referral_link = f"https://t.me/{bot_username}?start=ref_{user_id}"
+    user_pts = get_user_points(str(user_id))
+    
+    refer_msg = (
+        "🎁 <b>Student Help Club - Refer & Earn Program</b>\n\n"
+        "Apne doston aur classmates ko invite karein aur har successful join par reward points paayein!\n\n"
+        f"💰 <b>Per Referral Bonus:</b> +{POINTS_PER_REFERRAL} Points\n"
+        f"⭐ <b>Aapke Total Points:</b> <b>{user_pts} Points</b> (₹{user_pts} Discount Value)\n\n"
+        "🔗 <b>Aapka Unique Referral Link:</b>\n"
+        f"<code>{referral_link}</code>\n\n"
+        "📌 <i>Jab bhi koi dost is link se bot start karega, aapke account mein points jud jayenge. In points ko aap assignment kharidte waqt discount ke roop mein use kar sakte hain!</i>"
+    )
+    markup = InlineKeyboardMarkup(row_width=1)
+    markup.add(
+        InlineKeyboardButton("📤 Share Link with Friends", url=f"https://t.me/share/url?url={referral_link}&text=📚%20IGNOU%20ke%20sabhi%20Solved%20Assignments%20aur%20Updates%20ke%20liye%20yeh%20Bot%20join%20karein!"),
+        InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main")
+    )
+    bot.send_message(user_id, refer_msg, parse_mode='HTML', reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: call.data == "verify_join")
 def verify_callback(call):
@@ -413,9 +501,9 @@ def fetch_ignou_result(enr_no, chat_id):
         bot.send_message(chat_id, "⚠️ We are currently unable to connect to the IGNOU servers due to high traffic. Please try again later.")
 
 # ==========================================
-# 🔀 CALLBACK HANDLERS (FLOW LOGIC)
+# 🔀 CALLBACK HANDLERS (FLOW LOGIC & ADMIN FIX)
 # ==========================================
-@bot.callback_query_handler(func=lambda call: call.data.startswith("set_med_") or call.data in ["choice_paid", "choice_free", "admin_verify", "admin_reject", "view_sample"])
+@bot.callback_query_handler(func=lambda call: call.data.startswith("set_med_") or call.data in ["choice_paid", "choice_free", "admin_verify", "admin_reject", "view_sample", "redeem_points"])
 def handle_flow(call):
     user_id = call.message.chat.id
     
@@ -424,7 +512,9 @@ def handle_flow(call):
         caption = call.message.caption
         if not caption: return
             
-        user_id_match = re.search(r"UserID:\s*(\d+)", caption)
+        user_id_match = re.search(r"System ID:\s*<code>(\d+)<\/code>", caption)
+        if not user_id_match:
+            user_id_match = re.search(r"UserID:\s*(\d+)", caption)
         if not user_id_match: return
             
         target_uid = int(user_id_match.group(1))
@@ -451,11 +541,17 @@ def handle_flow(call):
         caption = call.message.caption
         if not caption: return
             
-        user_id_match = re.search(r"UserID:\s*(\d+)", caption)
+        # 🔥 ROBUST REGEX FOR ADMIN VERIFICATION MATCHING 🔥
+        user_id_match = re.search(r"System ID:\s*<code>(\d+)<\/code>", caption)
+        if not user_id_match:
+            user_id_match = re.search(r"UserID:\s*(\d+)", caption)
+            
         courses_match = re.search(r"Selected Courses:\s*(.+)", caption)
         medium_match = re.search(r"Medium Selected:\s*(HINDI|ENGLISH|N/A)", caption, re.IGNORECASE)
         
-        if not (user_id_match and courses_match and medium_match): return
+        if not (user_id_match and courses_match and medium_match):
+            bot.answer_callback_query(call.id, "❌ Error: Could not parse admin caption data!", show_alert=True)
+            return
             
         target_uid = int(user_id_match.group(1))
         courses_str = courses_match.group(1)
@@ -549,23 +645,29 @@ def handle_flow(call):
                     found_lines.append(f"❌ <b>{course_input.upper()}</b> - Not Available")
                     
             if valid_courses:
-                # 🔥 FIXED: PRICE IS NOW CALCULATED ONLY ON VALID/AVAILABLE COURSES 🔥
+                # 🔥 PRICE CALCULATED ONLY ON VALID COURSES 🔥
                 total_price = len(valid_courses) * PRICE_PER_PDF
                 order['total'] = total_price
                 order['valid_courses'] = valid_courses
+                order['discount'] = 0
+                
+                user_pts = get_user_points(str(user_id))
                 
                 markup = InlineKeyboardMarkup(row_width=2)
                 markup.add(
-                    InlineKeyboardButton(f"💳 Checkout Valid PDFs (₹{total_price})", callback_data="choice_paid"),
+                    InlineKeyboardButton(f"💳 Checkout (₹{total_price})", callback_data="choice_paid"),
                     InlineKeyboardButton("🆓 Watch Free Tutorial", callback_data="choice_free")
                 )
+                if user_pts > 0:
+                    markup.add(InlineKeyboardButton(f"⭐ Redeem {user_pts} Points (Get ₹{user_pts} Off)", callback_data="redeem_points"))
                 markup.add(InlineKeyboardButton("📄 View Live Sample (3 Pages)", callback_data="view_sample"))
                 markup.add(InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main"))
                 
                 reply_text = (
                     f"📋 <b>Order Availability Report ({medium}):</b>\n\n" +
                     "\n".join(found_lines) + "\n\n" +
-                    f"💵 <b>Revised Invoice Amount:</b> ₹{total_price} <i>(For {len(valid_courses)} available PDFs)</i>\n\n"
+                    f"💵 <b>Total Invoice Amount:</b> ₹{total_price} <i>(For {len(valid_courses)} available PDFs)</i>\n"
+                    f"⭐ <b>Available Points:</b> {user_pts} Points\n\n"
                     "👇 <i>Please choose your preferred method:</i>"
                 )
                 bot.send_message(user_id, reply_text, parse_mode='HTML', reply_markup=markup)
@@ -579,6 +681,38 @@ def handle_flow(call):
                 bot.send_message(user_id, reply_text, parse_mode='HTML', reply_markup=markup)
         except Exception as e:
             bot.send_message(user_id, f"❌ System Error: {e}")
+
+    elif call.data == "redeem_points":
+        user_pts = get_user_points(str(user_id))
+        total = order.get('total', 0)
+        if user_pts > 0 and total > 0:
+            discount = min(user_pts, total)
+            remaining_total = total - discount
+            remaining_pts = user_pts - discount
+            
+            order['total'] = remaining_total
+            order['discount'] = discount
+            update_user_points(str(user_id), remaining_pts)
+            
+            try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
+            except: pass
+            
+            markup = InlineKeyboardMarkup(row_width=1)
+            markup.add(
+                InlineKeyboardButton(f"💳 Proceed to Pay ₹{remaining_total}", callback_data="choice_paid"),
+                InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main")
+            )
+            bot.send_message(
+                user_id,
+                f"✅ <b>Points Redeemed Successfully!</b>\n\n"
+                f"🔹 Discount Applied: -₹{discount}\n"
+                f"🔹 <b>New Payable Amount: ₹{remaining_total}</b>\n\n"
+                f"👇 <i>Click below to proceed to payment:</i>",
+                parse_mode='HTML',
+                reply_markup=markup
+            )
+        else:
+            bot.answer_callback_query(call.id, "❌ No points available to redeem!", show_alert=True)
 
     elif call.data == "view_sample":
         try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
@@ -717,7 +851,7 @@ def handle_flow(call):
         bot.send_message(user_id, reply, parse_mode='HTML', disable_web_page_preview=True, reply_markup=markup)
 
 # ==========================================
-# 📩 MESSAGE HANDLER (CONTINUOUS LISTENING)
+# 📩 MESSAGE HANDLER (CONTINUOUS LISTENING & MOBILE BUTTON ALIGNMENT FIX)
 # ==========================================
 @bot.message_handler(func=lambda message: True, content_types=['text', 'audio', 'document', 'photo', 'sticker', 'video', 'video_note', 'voice', 'location', 'contact'])
 def continuous_check(message):
@@ -762,7 +896,8 @@ def continuous_check(message):
                             f"🗣️ <b>Medium Selected:</b> {med_str}\n\n"
                             "Admin: Please verify the transaction and select an action below:"
                         )
-                        markup = InlineKeyboardMarkup()
+                        # 🔥 FIXED: MOBILE BUTTON ALIGNMENT (row_width=1 taaki buttons cut na hon) 🔥
+                        markup = InlineKeyboardMarkup(row_width=1)
                         markup.add(
                             InlineKeyboardButton("✅ Verify Payment & Send PDFs", callback_data="admin_verify"),
                             InlineKeyboardButton("❌ Decline Payment", callback_data="admin_reject")
@@ -779,7 +914,7 @@ def continuous_check(message):
                 if user_id in WAITING_FOR_ENROLLMENT:
                     WAITING_FOR_ENROLLMENT.remove(user_id)
                     enr_number = message.text.strip()
-                    bot.send_message(message.chat.id, f"🔍 <b>Processing Request...</b>\n<b>Enrollment Number:</b> <code>{enr_number}</code>\n<i>Fetching your latest grade card securely from IGNOU servers. Please wait a few moments...</i>", parse_mode='HTML')
+                    bot.send_message(message.chat.id, f"🔍 <b>Processing Request...</b>\n\n<b>Enrollment Number:</b> <code>{enr_number}</code>\n\n<i>Fetching your latest grade card securely from IGNOU servers. Please wait a few moments...</i>", parse_mode='HTML')
                     fetch_ignou_result(enr_number, message.chat.id)
                 
                 elif user_id in WAITING_FOR_COURSE:
