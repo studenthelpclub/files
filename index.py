@@ -125,32 +125,36 @@ def update_user_points(user_id_str, points):
     except Exception:
         pass
 
-def save_user(message, referrer_id=None):
+def save_user_secure(message, referrer_id=None):
     try:
         user_id = str(message.from_user.id)
         col_vals = users_sheet.col_values(1)
         if user_id not in col_vals:
             name = message.from_user.first_name or "N/A"
             username = message.from_user.username or "N/A"
-            ref_by = str(referrer_id) if referrer_id and referrer_id != user_id else "None"
-            users_sheet.append_row([user_id, name, username, "N/A", "0", ref_by])
+            valid_referrer = "None"
+            if referrer_id and str(referrer_id) != user_id:
+                if str(referrer_id) in col_vals:
+                    valid_referrer = str(referrer_id)
             
-            if referrer_id and referrer_id != user_id:
-                ref_row = get_user_row(str(referrer_id))
+            users_sheet.append_row([user_id, name, username, "N/A", "0", valid_referrer])
+            
+            if valid_referrer != "None":
+                ref_row = get_user_row(valid_referrer)
                 if ref_row:
-                    current_pts = get_user_points(str(referrer_id))
+                    current_pts = get_user_points(valid_referrer)
                     new_pts = current_pts + POINTS_PER_REFERRAL
-                    update_user_points(str(referrer_id), new_pts)
+                    update_user_points(valid_referrer, new_pts)
                     try:
                         bot.send_message(
-                            int(referrer_id),
-                            f"🎉 <b>Referral Bonus Credited!</b>\n\nNaye student ne aapke link se join kiya hai. Aapke account mein <b>+{POINTS_PER_REFERRAL} Points</b> add kar diye gaye hain! 🎁",
+                            int(valid_referrer),
+                            f"🎉 <b>Referral Bonus Credited!</b>\n\nNaye student ne aapke secure referral link se join kiya hai. Aapke account mein <b>+{POINTS_PER_REFERRAL} Points</b> add kar diye gaye hain! 🎁",
                             parse_mode='HTML'
                         )
                     except:
                         pass
     except Exception as e:
-        print(f"Save user error: {e}")
+        print(f"Secure save user error: {e}")
 
 def check_membership(user_id):
     for chat_id in REQUIRED_CHATS:
@@ -163,7 +167,7 @@ def check_membership(user_id):
     return True
 
 # ==========================================
-# 🚀 ADMIN COMMANDS (/chatid, /post_yt, /broadcast)
+# 🚀 ADMIN COMMANDS
 # ==========================================
 @bot.message_handler(commands=['chatid'])
 def handle_chatid(message):
@@ -235,7 +239,7 @@ def broadcast_message(message):
                     fail += 1
         bot.send_message(message.chat.id, f"✅ <b>Broadcast Complete:</b>\nSent: {success}\nFailed: {fail}", parse_mode='HTML')
     except Exception as e:
-        bot.send_message(message.chat.id, f"❌ Broadcast Error: {e}")
+        bot.reply_to(message, f"❌ Broadcast Error: {e}")
 
 # ==========================================
 # 🚀 BACKGROUND AUTO-TASKS
@@ -308,7 +312,7 @@ bg_thread = threading.Thread(target=background_auto_tasks, daemon=True)
 bg_thread.start()
 
 # ==========================================
-# 📱 MENUS & NAVIGATION (BACK VS MAIN MENU FIX)
+# 📱 MENUS & NAVIGATION
 # ==========================================
 def get_main_menu():
     markup = InlineKeyboardMarkup(row_width=2)
@@ -324,7 +328,6 @@ def get_main_menu():
     return markup
 
 def get_navigation_buttons(back_callback):
-    """Separate Back and Main Menu buttons for clean navigation"""
     markup = InlineKeyboardMarkup(row_width=2)
     markup.add(
         InlineKeyboardButton("⬅️ Back", callback_data=back_callback),
@@ -346,14 +349,16 @@ def handle_back(call):
 
 def send_join_message(chat_id):
     markup = InlineKeyboardMarkup(row_width=1)
-    markup.add(InlineKeyboardButton("📢 Join Main Channel", url="https://t.me/studenthelpclub"))
-    markup.add(InlineKeyboardButton("👥 Join Discussion Group", url="https://t.me/studenthelpclubofficial"))
-    markup.add(InlineKeyboardButton("✅ I Have Joined (Verify)", callback_data="verify_join"))
-    
+    markup.add(
+        InlineKeyboardButton("📢 Join Main Channel", url="https://t.me/studenthelpclub"),
+        InlineKeyboardButton("👥 Join Discussion Group", url="https://t.me/studenthelpclubofficial"),
+        InlineKeyboardButton("📚 Join IGNOU Solved Group", url="https://t.me/+YwUmMpjCgHFkZDdl"),
+        InlineKeyboardButton("✅ I Have Joined (Verify)", callback_data="verify_join")
+    )
     join_msg = (
         "👋 <b>Welcome to Student Help Club Official Portal!</b>\n\n"
-        "To access IGNOU Solved Assignments, Academic Alerts, and Premium Services, please join our official communities.\n\n"
-        "👇 <i>Click the buttons below to join, then click 'I Have Joined' to verify your status.</i>"
+        "To access IGNOU Solved Assignments, Academic Alerts, and Premium Services, please join our <b>all 3 official communities</b> below:\n\n"
+        "👇 <i>Click the buttons to join, then click 'I Have Joined' to verify your status.</i>"
     )
     bot.send_message(chat_id, join_msg, reply_markup=markup, parse_mode='HTML')
 
@@ -371,7 +376,7 @@ def send_welcome(message):
         except:
             pass
 
-    save_user(message, referrer_id=referrer_id)
+    save_user_secure(message, referrer_id=referrer_id)
 
     if check_membership(user_id):
         welcome_text = (
@@ -401,7 +406,7 @@ def handle_refer_earn(call):
         f"⭐ <b>Aapke Total Points:</b> <b>{user_pts} Points</b> (₹{user_pts} Discount Value)\n\n"
         "🔗 <b>Aapka Unique Referral Link:</b>\n"
         f"<code>{referral_link}</code>\n\n"
-        "📌 <i>Jab bhi koi dost is link se bot start karega, aapke account mein points jud jayenge. In points ko aap assignment kharidte waqt discount ke roop mein use kar sakte hain!</i>"
+        "📌 <i>Anti-Cheat Protected: Aap khud ke link se points nahi kama sakte. Jab koi naya student join karega tabhi points milenge! In points ko aap assignment kharidte waqt discount ke roop mein use kar sakte hain.</i>"
     )
     markup = InlineKeyboardMarkup(row_width=1)
     markup.add(
@@ -413,19 +418,18 @@ def handle_refer_earn(call):
 @bot.callback_query_handler(func=lambda call: call.data == "verify_join")
 def verify_callback(call):
     user_id = call.from_user.id
-    save_user(call.message)
     if check_membership(user_id):
         try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
         except Exception: pass 
-        bot.send_message(call.message.chat.id, "✅ <b>Access Verified!</b>\n\nThank you for joining our community. 🎉\n👇 <i>Please choose a service from the dashboard:</i>", parse_mode='HTML', reply_markup=get_main_menu())
+        bot.send_message(call.message.chat.id, "✅ <b>Access Verified!</b>\n\nThank you for joining all communities. 🎉\n👇 <i>Please choose a service from the dashboard:</i>", parse_mode='HTML', reply_markup=get_main_menu())
     else:
-        bot.answer_callback_query(call.id, "❌ Please ensure you have joined both channels before verifying!", show_alert=True)
+        bot.answer_callback_query(call.id, "❌ Kripya pehle teeno channels/groups join karein!", show_alert=True)
 
 @bot.callback_query_handler(func=lambda call: call.data == "start_check_result")
 def prompt_enrollment(call):
     user_id = call.from_user.id
     if not check_membership(user_id):
-        bot.answer_callback_query(call.id, "❌ Access Denied! Please join our channels first.", show_alert=True)
+        bot.answer_callback_query(call.id, "❌ Access Denied! Please join all channels first.", show_alert=True)
         return
     WAITING_FOR_ENROLLMENT.add(user_id)
     try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
@@ -436,7 +440,7 @@ def prompt_enrollment(call):
 def prompt_course_code(call):
     user_id = call.from_user.id
     if not check_membership(user_id):
-        bot.answer_callback_query(call.id, "❌ Access Denied! Please join our channels first.", show_alert=True)
+        bot.answer_callback_query(call.id, "❌ Access Denied! Please join all channels first.", show_alert=True)
         return
     WAITING_FOR_COURSE.add(user_id)
     try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
@@ -501,9 +505,9 @@ def fetch_ignou_result(enr_no, chat_id):
         bot.send_message(chat_id, "⚠️ We are currently unable to connect to the IGNOU servers due to high traffic. Please try again later.")
 
 # ==========================================
-# 🔀 CALLBACK HANDLERS (FLOW LOGIC & ADMIN FIX)
+# 🔀 CALLBACK HANDLERS
 # ==========================================
-@bot.callback_query_handler(func=lambda call: call.data.startswith("set_med_") or call.data in ["choice_paid", "choice_free", "admin_verify", "admin_reject", "view_sample", "redeem_points", "back_to_assignment"])
+@bot.callback_query_handler(func=lambda call: call.data.startswith("set_med_") or call.data in ["choice_paid", "choice_free", "admin_verify", "admin_reject", "view_sample", "redeem_points", "back_to_assignment", "free_redeemed_order"])
 def handle_flow(call):
     user_id = call.message.chat.id
     
@@ -587,7 +591,7 @@ def handle_flow(call):
                             break
                             
             if pdf_list:
-                bot.send_message(target_uid, "🎉 <b>Payment Verified Successfully!</b>\n\n⏳ <i>Our servers are preparing your high-quality PDFs for direct delivery. Please wait a few seconds...</i>", parse_mode='HTML')
+                bot.send_message(target_uid, "🎉 <b>Order Approved!</b>\n\n⏳ <i>Our servers are preparing your high-quality PDFs for direct delivery. Please wait a few seconds...</i>", parse_mode='HTML')
                 
                 for course_name, drive_url in pdf_list:
                     try:
@@ -709,22 +713,71 @@ def handle_flow(call):
             try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
             except: pass
             
-            markup = InlineKeyboardMarkup(row_width=2)
-            markup.add(
-                InlineKeyboardButton(f"💳 Pay ₹{remaining_total}", callback_data="choice_paid"),
-                InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main")
-            )
-            bot.send_message(
-                user_id,
-                f"✅ <b>Points Redeemed Successfully!</b>\n\n"
-                f"🔹 Discount Applied: -₹{discount}\n"
-                f"🔹 <b>New Payable Amount: ₹{remaining_total}</b>\n\n"
-                f"👇 <i>Click below to proceed to payment:</i>",
-                parse_mode='HTML',
-                reply_markup=markup
-            )
+            # 🔥 SMART CHECK: IF REMAINING TOTAL IS 0, SKIP QR GATEWAY AND GIVE DIRECT ORDER BUTTON 🔥
+            if remaining_total == 0:
+                markup = InlineKeyboardMarkup(row_width=1)
+                markup.add(
+                    InlineKeyboardButton("🚀 Place Free Order (Points Redeemed)", callback_data="free_redeemed_order"),
+                    InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main")
+                )
+                bot.send_message(
+                    user_id,
+                    f"✅ <b>Points Redeemed Successfully!</b>\n\n"
+                    f"🔹 Discount Applied: -₹{discount}\n"
+                    f"🔹 <b>New Payable Amount: ₹0 (Fully Covered by Points!)</b>\n\n"
+                    f"👇 <i>Click below to submit your order to admin for instant release:</i>",
+                    parse_mode='HTML',
+                    reply_markup=markup
+                )
+            else:
+                markup = InlineKeyboardMarkup(row_width=2)
+                markup.add(
+                    InlineKeyboardButton(f"💳 Pay ₹{remaining_total}", callback_data="choice_paid"),
+                    InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main")
+                )
+                bot.send_message(
+                    user_id,
+                    f"✅ <b>Points Redeemed Successfully!</b>\n\n"
+                    f"🔹 Discount Applied: -₹{discount}\n"
+                    f"🔹 <b>New Payable Amount: ₹{remaining_total}</b>\n\n"
+                    f"👇 <i>Click below to proceed to payment:</i>",
+                    parse_mode='HTML',
+                    reply_markup=markup
+                )
         else:
             bot.answer_callback_query(call.id, "❌ No points available to redeem!", show_alert=True)
+
+    elif call.data == "free_redeemed_order":
+        try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
+        except: pass
+        
+        c_str = ", ".join(order.get('valid_courses', []))
+        med_str = order.get('medium', 'HINDI')
+        
+        try:
+            forward_caption = (
+                f"🚨 <b>FREE ORDER VIA POINTS REDEMPTION!</b>\n\n"
+                f"👤 <b>Client Name:</b> {call.from_user.first_name}\n"
+                f"🆔 <b>System ID:</b> <code>{user_id}</code>\n"
+                f"📚 <b>Selected Courses:</b> {c_str}\n"
+                f"🗣️ <b>Medium Selected:</b> {med_str}\n"
+                f"⭐ <b>Payment Type:</b> 100% Points Discount (₹0)\n\n"
+                "Admin: Please verify and click below to send PDFs:"
+            )
+            markup = InlineKeyboardMarkup(row_width=1)
+            markup.add(
+                InlineKeyboardButton("✅ Verify & Send PDFs", callback_data="admin_verify"),
+                InlineKeyboardButton("❌ Decline Order", callback_data="admin_reject")
+            )
+            bot.send_message(ADMIN_ID, forward_caption, parse_mode='HTML', reply_markup=markup)
+            bot.send_message(
+                user_id,
+                "✅ <b>Order Submitted Successfully!</b>\n\nYour order has been fully paid using reward points. Our admin is processing your documents and they will be delivered here shortly.",
+                parse_mode='HTML',
+                reply_markup=get_back_button()
+            )
+        except Exception as e:
+            bot.send_message(user_id, f"❌ Error submitting order: {e}")
 
     elif call.data == "view_sample":
         try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
@@ -869,7 +922,7 @@ def handle_flow(call):
         bot.send_message(user_id, reply, parse_mode='HTML', disable_web_page_preview=True, reply_markup=markup)
 
 # ==========================================
-# 📩 MESSAGE HANDLER (CONTINUOUS LISTENING & ADMIN BUTTON FIX)
+# 📩 MESSAGE HANDLER
 # ==========================================
 @bot.message_handler(func=lambda message: True, content_types=['text', 'audio', 'document', 'photo', 'sticker', 'video', 'video_note', 'voice', 'location', 'contact'])
 def continuous_check(message):
@@ -914,18 +967,17 @@ def continuous_check(message):
                             f"🗣️ <b>Medium Selected:</b> {med_str}\n\n"
                             "Admin: Please verify the transaction and select an action below:"
                         )
-                        # 🔥 FIXED: MOBILE BUTTON ALIGNMENT (row_width=1 taaki buttons cut na hon) 🔥
                         markup = InlineKeyboardMarkup(row_width=1)
                         markup.add(
                             InlineKeyboardButton("✅ Verify Payment & Send PDFs", callback_data="admin_verify"),
                             InlineKeyboardButton("❌ Decline Payment", callback_data="admin_reject")
                         )
                         bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=forward_caption, parse_mode='HTML', reply_markup=markup)
-                        bot.send_message(message.chat.id, "✅ <b>Screenshot Uploaded Successfully!</b>\n\nYour payment is currently under review by our administrators.\n⏳ <b>Estimated Verification Time: Under 30 Minutes.</b>\n\nOnce verified, the premium PDFs will be delivered securely to this chat window.", parse_mode='HTML', reply_to_message_id=message.message_id, reply_markup=get_back_button())
+                        bot.send_message(message.chat.id, "✅ <b>Screenshot Uploaded Successfully!</b>\n\nYour payment is currently under review by our administrators.\n⏳ <b>Estimated Verification Time: Under 30 Minutes.</b>\n\nOnce verified, the premium PDFs will be delivered securely to this chat window.", parse_mode='HTML', reply_to_message_id=message.message_id, reply_markup=get_navigation_buttons("back_to_main"))
                     except Exception as e:
                         bot.reply_to(message, "❌ An error occurred during transmission. Please contact our support team.")
                 elif user_id not in USER_STATE:
-                    bot.reply_to(message, "⚠️ System Error: It appears you have not selected any subjects yet. Please select your courses from the Main Menu before uploading a receipt.", reply_markup=get_back_button())
+                    bot.reply_to(message, "⚠️ System Error: It appears you have not selected any subjects yet. Please select your courses from the Main Menu before uploading a receipt.", reply_markup=get_navigation_buttons("back_to_main"))
                 return
 
             if message.content_type == 'text' and not message.text.startswith('/'):
