@@ -50,7 +50,7 @@ UTILITY_TOOLS = "https://shctools.in/"
 QR_CODE_URL = "https://raw.githubusercontent.com/studenthelpclub/files/main/qrcode.jpg"
 UPI_ID = "studenthelpclub@naviaxis"
 PRICE_PER_PDF = 20  
-POINTS_PER_REFERRAL = 5  # Ek referral par milne wale points
+POINTS_PER_REFERRAL = 2  # Ek referral par milne wale points
 
 # --- STATE VARIABLES ---
 WAITING_FOR_ENROLLMENT = set()
