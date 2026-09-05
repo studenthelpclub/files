@@ -50,7 +50,7 @@ UTILITY_TOOLS = "https://shctools.in/"
 QR_CODE_URL = "https://raw.githubusercontent.com/studenthelpclub/files/main/qrcode.jpg"
 UPI_ID = "studenthelpclub@naviaxis"
 PRICE_PER_PDF = 20  
-POINTS_PER_REFERRAL = 2  # Ek referral par milne wale points
+POINTS_PER_REFERRAL = 5  # Ek referral par milne wale points
 
 # --- STATE VARIABLES ---
 WAITING_FOR_ENROLLMENT = set()
@@ -68,7 +68,6 @@ try:
     client = gspread.authorize(creds)
 
     user_doc = client.open("Student Help Club Data")
-    # Users sheet columns expected: [UserID, Name, Username, Mobile, Points, ReferredBy]
     users_sheet = user_doc.worksheet("Users")
 
     master_doc = client.open("Master Sheet")
@@ -134,10 +133,8 @@ def save_user(message, referrer_id=None):
             name = message.from_user.first_name or "N/A"
             username = message.from_user.username or "N/A"
             ref_by = str(referrer_id) if referrer_id and referrer_id != user_id else "None"
-            # Format: [UserID, Name, Username, Mobile, Points, ReferredBy]
             users_sheet.append_row([user_id, name, username, "N/A", "0", ref_by])
             
-            # Agar valid referrer hai, toh usko points do
             if referrer_id and referrer_id != user_id:
                 ref_row = get_user_row(str(referrer_id))
                 if ref_row:
@@ -238,7 +235,7 @@ def broadcast_message(message):
                     fail += 1
         bot.send_message(message.chat.id, f"✅ <b>Broadcast Complete:</b>\nSent: {success}\nFailed: {fail}", parse_mode='HTML')
     except Exception as e:
-        bot.reply_to(message, f"❌ Broadcast Error: {e}")
+        bot.send_message(message.chat.id, f"❌ Broadcast Error: {e}")
 
 # ==========================================
 # 🚀 BACKGROUND AUTO-TASKS
@@ -311,7 +308,7 @@ bg_thread = threading.Thread(target=background_auto_tasks, daemon=True)
 bg_thread.start()
 
 # ==========================================
-# 📱 MENUS & NAVIGATION (REFER & EARN ADDED)
+# 📱 MENUS & NAVIGATION (BACK VS MAIN MENU FIX)
 # ==========================================
 def get_main_menu():
     markup = InlineKeyboardMarkup(row_width=2)
@@ -326,9 +323,13 @@ def get_main_menu():
     )
     return markup
 
-def get_back_button():
-    markup = InlineKeyboardMarkup(row_width=1)
-    markup.add(InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main"))
+def get_navigation_buttons(back_callback):
+    """Separate Back and Main Menu buttons for clean navigation"""
+    markup = InlineKeyboardMarkup(row_width=2)
+    markup.add(
+        InlineKeyboardButton("⬅️ Back", callback_data=back_callback),
+        InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main")
+    )
     return markup
 
 @bot.callback_query_handler(func=lambda call: call.data == "back_to_main")
@@ -362,7 +363,6 @@ def send_welcome(message):
     text = message.text
     referrer_id = None
     
-    # Check for referral payload (eg: /start ref_1238405133)
     if "ref_" in text:
         try:
             parts = text.split("ref_")
@@ -406,7 +406,7 @@ def handle_refer_earn(call):
     markup = InlineKeyboardMarkup(row_width=1)
     markup.add(
         InlineKeyboardButton("📤 Share Link with Friends", url=f"https://t.me/share/url?url={referral_link}&text=📚%20IGNOU%20ke%20sabhi%20Solved%20Assignments%20aur%20Updates%20ke%20liye%20yeh%20Bot%20join%20karein!"),
-        InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main")
+        InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main")
     )
     bot.send_message(user_id, refer_msg, parse_mode='HTML', reply_markup=markup)
 
@@ -430,7 +430,7 @@ def prompt_enrollment(call):
     WAITING_FOR_ENROLLMENT.add(user_id)
     try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
     except: pass
-    bot.send_message(call.message.chat.id, "🎓 <b>IGNOU Result Portal</b>\n\nWelcome to the official result checking system.\n\nPlease enter your 9 or 10-digit <b>Enrollment Number</b> below:", parse_mode='HTML', reply_markup=get_back_button())
+    bot.send_message(call.message.chat.id, "🎓 <b>IGNOU Result Portal</b>\n\nWelcome to the official result checking system.\n\nPlease enter your 9 or 10-digit <b>Enrollment Number</b> below:", parse_mode='HTML', reply_markup=get_navigation_buttons("back_to_main"))
 
 @bot.callback_query_handler(func=lambda call: call.data == "start_assignment")
 def prompt_course_code(call):
@@ -446,7 +446,7 @@ def prompt_course_code(call):
         "Please enter your required <b>Course Code(s)</b> below to check availability.\n\n"
         "📌 <i>Pro Tip: To order multiple subjects at once, separate them with commas (e.g., BPSC 110, BCOC 134, BHIC 132).</i>"
     )
-    bot.send_message(call.message.chat.id, instruction_msg, parse_mode='HTML', reply_markup=get_back_button())
+    bot.send_message(call.message.chat.id, instruction_msg, parse_mode='HTML', reply_markup=get_navigation_buttons("back_to_main"))
 
 # ==========================================
 # 📝 IGNOU RESULT FETCHING
@@ -503,10 +503,22 @@ def fetch_ignou_result(enr_no, chat_id):
 # ==========================================
 # 🔀 CALLBACK HANDLERS (FLOW LOGIC & ADMIN FIX)
 # ==========================================
-@bot.callback_query_handler(func=lambda call: call.data.startswith("set_med_") or call.data in ["choice_paid", "choice_free", "admin_verify", "admin_reject", "view_sample", "redeem_points"])
+@bot.callback_query_handler(func=lambda call: call.data.startswith("set_med_") or call.data in ["choice_paid", "choice_free", "admin_verify", "admin_reject", "view_sample", "redeem_points", "back_to_assignment"])
 def handle_flow(call):
     user_id = call.message.chat.id
     
+    if call.data == "back_to_assignment":
+        try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
+        except: pass
+        WAITING_FOR_COURSE.add(user_id)
+        instruction_msg = (
+            "📚 <b>Premium Solved Assignment Delivery</b>\n\n"
+            "Please enter your required <b>Course Code(s)</b> below to check availability.\n\n"
+            "📌 <i>Pro Tip: To order multiple subjects at once, separate them with commas (e.g., BPSC 110, BCOC 134, BHIC 132).</i>"
+        )
+        bot.send_message(user_id, instruction_msg, parse_mode='HTML', reply_markup=get_navigation_buttons("back_to_main"))
+        return
+
     if call.data == "admin_reject":
         if call.from_user.id != ADMIN_ID: return
         caption = call.message.caption
@@ -541,7 +553,6 @@ def handle_flow(call):
         caption = call.message.caption
         if not caption: return
             
-        # 🔥 ROBUST REGEX FOR ADMIN VERIFICATION MATCHING 🔥
         user_id_match = re.search(r"System ID:\s*<code>(\d+)<\/code>", caption)
         if not user_id_match:
             user_id_match = re.search(r"UserID:\s*(\d+)", caption)
@@ -645,7 +656,6 @@ def handle_flow(call):
                     found_lines.append(f"❌ <b>{course_input.upper()}</b> - Not Available")
                     
             if valid_courses:
-                # 🔥 PRICE CALCULATED ONLY ON VALID COURSES 🔥
                 total_price = len(valid_courses) * PRICE_PER_PDF
                 order['total'] = total_price
                 order['valid_courses'] = valid_courses
@@ -661,7 +671,10 @@ def handle_flow(call):
                 if user_pts > 0:
                     markup.add(InlineKeyboardButton(f"⭐ Redeem {user_pts} Points (Get ₹{user_pts} Off)", callback_data="redeem_points"))
                 markup.add(InlineKeyboardButton("📄 View Live Sample (3 Pages)", callback_data="view_sample"))
-                markup.add(InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main"))
+                markup.add(
+                    InlineKeyboardButton("⬅️ Back", callback_data="back_to_assignment"),
+                    InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main")
+                )
                 
                 reply_text = (
                     f"📋 <b>Order Availability Report ({medium}):</b>\n\n" +
@@ -672,13 +685,12 @@ def handle_flow(call):
                 )
                 bot.send_message(user_id, reply_text, parse_mode='HTML', reply_markup=markup)
             else:
-                markup = get_back_button()
                 reply_text = (
                     f"📋 <b>Order Availability Report ({medium}):</b>\n\n" +
                     "\n".join(found_lines) + "\n\n" +
                     f"⚠️ We apologize, none of the requested courses are currently available in <b>{medium}</b> medium."
                 )
-                bot.send_message(user_id, reply_text, parse_mode='HTML', reply_markup=markup)
+                bot.send_message(user_id, reply_text, parse_mode='HTML', reply_markup=get_navigation_buttons("back_to_assignment"))
         except Exception as e:
             bot.send_message(user_id, f"❌ System Error: {e}")
 
@@ -697,10 +709,10 @@ def handle_flow(call):
             try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
             except: pass
             
-            markup = InlineKeyboardMarkup(row_width=1)
+            markup = InlineKeyboardMarkup(row_width=2)
             markup.add(
-                InlineKeyboardButton(f"💳 Proceed to Pay ₹{remaining_total}", callback_data="choice_paid"),
-                InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main")
+                InlineKeyboardButton(f"💳 Pay ₹{remaining_total}", callback_data="choice_paid"),
+                InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main")
             )
             bot.send_message(
                 user_id,
@@ -750,8 +762,10 @@ def handle_flow(call):
                                     safe_name = row[0].replace(' ', '_')
                                     
                                     markup = InlineKeyboardMarkup(row_width=1)
-                                    markup.add(InlineKeyboardButton("💳 Continue to Full Checkout", callback_data="choice_paid"))
-                                    markup.add(InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main"))
+                                    markup.add(
+                                        InlineKeyboardButton("💳 Continue to Full Checkout", callback_data="choice_paid"),
+                                        InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main")
+                                    )
                                     
                                     try: bot.delete_message(user_id, msg.message_id)
                                     except: pass
@@ -771,14 +785,16 @@ def handle_flow(call):
             try: bot.delete_message(user_id, msg.message_id)
             except: pass
             markup = InlineKeyboardMarkup(row_width=1)
-            markup.add(InlineKeyboardButton("💳 Proceed to Checkout", callback_data="choice_paid"))
-            markup.add(InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main"))
+            markup.add(
+                InlineKeyboardButton("💳 Proceed to Checkout", callback_data="choice_paid"),
+                InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main")
+            )
             bot.send_message(user_id, "⚠️ We were unable to automatically generate a sample for this specific format. However, rest assured our material carries a 100% Quality Guarantee.", reply_markup=markup)
             
     elif call.data == "choice_paid":
         total = order.get('total', 20)
         markup = InlineKeyboardMarkup(row_width=1)
-        markup.add(InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main"))
+        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main"))
         
         payment_caption = (
             "💳 <b>Secure Payment Gateway</b>\n\n"
@@ -821,7 +837,10 @@ def handle_flow(call):
         except Exception: pass
 
         markup = InlineKeyboardMarkup(row_width=1)
-        markup.add(InlineKeyboardButton("📢 Join Discussion Community", url=FINAL_GROUP_LINK))
+        markup.add(
+            InlineKeyboardButton("📢 Join Discussion Community", url=FINAL_GROUP_LINK),
+            InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main")
+        )
         
         if len(courses) == 1 and specific_yt_link:
             markup.add(InlineKeyboardButton("📺 Watch Video Tutorial", url=specific_yt_link))
@@ -847,11 +866,10 @@ def handle_flow(call):
                 "👇 <i>Click below to explore our video library:</i>"
             )
 
-        markup.add(InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main"))
         bot.send_message(user_id, reply, parse_mode='HTML', disable_web_page_preview=True, reply_markup=markup)
 
 # ==========================================
-# 📩 MESSAGE HANDLER (CONTINUOUS LISTENING & MOBILE BUTTON ALIGNMENT FIX)
+# 📩 MESSAGE HANDLER (CONTINUOUS LISTENING & ADMIN BUTTON FIX)
 # ==========================================
 @bot.message_handler(func=lambda message: True, content_types=['text', 'audio', 'document', 'photo', 'sticker', 'video', 'video_note', 'voice', 'location', 'contact'])
 def continuous_check(message):
@@ -928,7 +946,10 @@ def continuous_check(message):
                         InlineKeyboardButton("🇮🇳 Hindi Medium", callback_data="set_med_HINDI"),
                         InlineKeyboardButton("🇬🇧 English Medium", callback_data="set_med_ENGLISH")
                     )
-                    markup.add(InlineKeyboardButton("🔙 Return to Main Menu", callback_data="back_to_main"))
+                    markup.add(
+                        InlineKeyboardButton("⬅️ Back", callback_data="start_assignment"),
+                        InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main")
+                    )
                     bot.send_message(message.chat.id, "🗣️ <b>Select Academic Medium:</b>\n\nPlease select the medium/language in which you require the assignments:", parse_mode='HTML', reply_markup=markup)
                 else:
                      bot.send_message(message.chat.id, "👇 Please select a service from the official Dashboard below:", parse_mode='HTML', reply_markup=get_main_menu())
