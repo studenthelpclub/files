@@ -171,7 +171,6 @@ def check_membership(user_id):
             return False
     return True
 
-# Helper to deliver PDFs directly to user
 def deliver_pdfs_to_user(target_uid, courses_str, medium_str):
     try:
         records_sheet1 = sheet1.get_all_values()
@@ -576,14 +575,13 @@ def handle_flow(call):
         bot.send_message(user_id, instruction_msg, parse_mode='HTML', reply_markup=get_navigation_buttons("back_to_main"))
         return
 
+    # 🔥 FIXED: ADMIN REJECT ROBUST REGEX MATCHING 🔥
     if call.data == "admin_reject":
         if call.from_user.id != ADMIN_ID: return
         caption = call.message.caption
         if not caption: return
             
-        user_id_match = re.search(r"System ID:\s*<code>(\d+)<\/code>", caption)
-        if not user_id_match:
-            user_id_match = re.search(r"UserID:\s*(\d+)", caption)
+        user_id_match = re.search(r"(?:System ID|UserID):\s*(?:<code>)?(\d+)(?:<\/code>)?", caption)
         if not user_id_match: return
             
         target_uid = int(user_id_match.group(1))
