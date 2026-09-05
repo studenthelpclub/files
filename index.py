@@ -159,7 +159,7 @@ def save_user_secure(message, referrer_id=None):
                     except:
                         pass
     except Exception as e:
-        print(f"Secure save user error: {e}")
+        pass
 
 def check_membership(user_id):
     for chat_id in REQUIRED_CHATS:
@@ -393,6 +393,9 @@ def handle_back(call):
     WAITING_FOR_ENROLLMENT.discard(user_id)
     WAITING_FOR_COURSE.discard(user_id)
     if user_id in USER_STATE:
+        # Reset any pending discounts when going back to main menu
+        if 'pending_discount' in USER_STATE[user_id]:
+            USER_STATE[user_id]['pending_discount'] = 0
         del USER_STATE[user_id]
         
     try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
@@ -505,7 +508,7 @@ def prompt_course_code(call):
     bot.send_message(call.message.chat.id, instruction_msg, parse_mode='HTML', reply_markup=get_navigation_buttons("back_to_main"))
 
 # ==========================================
-# 📝 IGNOU RESULT FETCHING
+# 📝 IGNOU RESULT FETCHING (THREADED)
 # ==========================================
 def fetch_ignou_result(enr_no, chat_id):
     options = webdriver.ChromeOptions()
@@ -575,7 +578,6 @@ def handle_flow(call):
         bot.send_message(user_id, instruction_msg, parse_mode='HTML', reply_markup=get_navigation_buttons("back_to_main"))
         return
 
-    # 🔥 FIXED: ADMIN REJECT ROBUST REGEX MATCHING 🔥
     if call.data == "admin_reject":
         if call.from_user.id != ADMIN_ID: return
         caption = call.message.caption
@@ -603,6 +605,7 @@ def handle_flow(call):
         bot.answer_callback_query(call.id, "Order Rejected and User Notified!")
         return
 
+    # 🔥 FIX 2: THREADED ADMIN VERIFY SO BOT NEVER HANGS 🔥
     if call.data == "admin_verify":
         if call.from_user.id != ADMIN_ID: return
         caption = call.message.caption
@@ -622,13 +625,15 @@ def handle_flow(call):
         
         bot.answer_callback_query(call.id, "Processing PDF Delivery...")
         
-        success = deliver_pdfs_to_user(target_uid, courses_str, medium_str)
-        if success:
-            try: bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption=caption + "\n\n<b>[STATUS: APPROVED & DELIVERED ✅]</b>", parse_mode='HTML')
-            except Exception: pass
-            bot.answer_callback_query(call.id, "PDFs sent successfully!")
-        else:
-            bot.answer_callback_query(call.id, "❌ Error: Could not locate exact links in database.", show_alert=True)
+        def run_verify():
+            success = deliver_pdfs_to_user(target_uid, courses_str, medium_str)
+            if success:
+                try: bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption=caption + "\n\n<b>[STATUS: APPROVED & DELIVERED ✅]</b>", parse_mode='HTML')
+                except Exception: pass
+            else:
+                bot.send_message(call.message.chat.id, f"❌ Failed to locate links for System ID: {target_uid}")
+                
+        threading.Thread(target=run_verify, daemon=True).start()
         return
 
     if user_id not in USER_STATE:
@@ -671,7 +676,7 @@ def handle_flow(call):
                 total_price = len(valid_courses) * PRICE_PER_PDF
                 order['total'] = total_price
                 order['valid_courses'] = valid_courses
-                order['discount'] = 0
+                order['pending_discount'] = 0  # 🔥 FIX 1: POINTS SAVED TO PENDING ONLY 🔥
                 
                 user_pts = get_user_points(str(user_id))
                 
@@ -712,11 +717,9 @@ def handle_flow(call):
         if user_pts > 0 and total > 0:
             discount = min(user_pts, total)
             remaining_total = total - discount
-            remaining_pts = user_pts - discount
             
-            order['total'] = remaining_total
-            order['discount'] = discount
-            update_user_points(str(user_id), remaining_pts)
+            # 🔥 FIX 1: STORE IN STATE. DO NOT CUT FROM SHEET YET. 🔥
+            order['pending_discount'] = discount
             
             try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
             except: pass
@@ -729,10 +732,10 @@ def handle_flow(call):
                 )
                 bot.send_message(
                     user_id,
-                    f"✅ <b>Points Redeemed Successfully!</b>\n\n"
+                    f"✅ <b>Points Applied Successfully!</b>\n\n"
                     f"🔹 Discount Applied: -₹{discount}\n"
                     f"🔹 <b>New Payable Amount: ₹0 (Fully Covered by Points!)</b>\n\n"
-                    f"👇 <i>Click below to get your PDFs instantly:</i>",
+                    f"👇 <i>Click below to permanently redeem points and get your PDFs instantly:</i>",
                     parse_mode='HTML',
                     reply_markup=markup
                 )
@@ -744,7 +747,7 @@ def handle_flow(call):
                 )
                 bot.send_message(
                     user_id,
-                    f"✅ <b>Points Redeemed Successfully!</b>\n\n"
+                    f"✅ <b>Points Applied Successfully!</b>\n\n"
                     f"🔹 Discount Applied: -₹{discount}\n"
                     f"🔹 <b>New Payable Amount: ₹{remaining_total}</b>\n\n"
                     f"👇 <i>Click below to proceed to payment:</i>",
@@ -761,89 +764,104 @@ def handle_flow(call):
         c_str = ", ".join(order.get('valid_courses', []))
         med_str = order.get('medium', 'HINDI')
         
+        # 🔥 FIX 1: DEDUCT POINTS ONLY NOW (WHEN ORDER IS PLACED) 🔥
+        discount_to_apply = order.get('pending_discount', 0)
+        if discount_to_apply > 0:
+            current_pts = get_user_points(str(user_id))
+            update_user_points(str(user_id), current_pts - discount_to_apply)
+            order['pending_discount'] = 0 # reset to prevent double deduction
+        
         bot.send_message(
             user_id,
             "✅ <b>Order Placed Successfully!</b>\n\nYour order has been fully paid using reward points. Delivering your PDFs now...",
             parse_mode='HTML'
         )
         
-        # 🔥 DIRECT AUTOMATIC DELIVERY (NO ADMIN NOTIFICATION FOR ₹0 ORDERS) 🔥
-        deliver_pdfs_to_user(user_id, c_str, med_str)
+        # 🔥 FIX 2: THREADED DELIVERY SO BOT DOES NOT HANG 🔥
+        def run_free_delivery():
+            deliver_pdfs_to_user(user_id, c_str, med_str)
+        threading.Thread(target=run_free_delivery, daemon=True).start()
 
+    # 🔥 FIX 2: THREADED SAMPLE GENERATION 🔥
     elif call.data == "view_sample":
         try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
         except: pass
             
         msg = bot.send_message(user_id, "⏳ <i>Generating a live sample from our secure database... This takes about 10-15 seconds. Please wait.</i>", parse_mode='HTML')
-        
         courses = order.get('valid_courses', order.get('raw_courses', []))
         medium = order.get('medium', 'HINDI')
-        sample_sent = False
         
-        try:
-            records_sheet1 = sheet1.get_all_values()
-            for course_input in courses:
-                s_term = clean_string(course_input)
-                for row in records_sheet1:
-                    if len(row) > 3:
-                        r_course = clean_string(row[0])
-                        r_medium = str(row[1]).strip().upper() if len(row) > 1 and str(row[1]).strip() != "" else "HINDI"
-                        
-                        if s_term in r_course and medium == r_medium:
-                            drive_url = str(row[3]).strip()
-                            direct_url = get_direct_drive_url(drive_url)
-                            if direct_url:
-                                res = requests.get(direct_url, timeout=30)
-                                if res.status_code == 200 and res.content.startswith(b'%PDF'):
-                                    pdf_file = io.BytesIO(res.content)
-                                    reader = PdfReader(pdf_file)
-                                    writer = PdfWriter()
-                                    num_pages = min(3, len(reader.pages))
-                                    for i in range(num_pages): writer.add_page(reader.pages[i])
-                                    output_pdf = io.BytesIO()
-                                    writer.write(output_pdf)
-                                    output_pdf.seek(0)
-                                    safe_name = row[0].replace(' ', '_')
-                                    
-                                    markup = InlineKeyboardMarkup(row_width=1)
-                                    markup.add(
-                                        InlineKeyboardButton("💳 Continue to Full Checkout", callback_data="choice_paid"),
-                                        InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main")
-                                    )
-                                    
-                                    try: bot.delete_message(user_id, msg.message_id)
-                                    except: pass
-                                    bot.send_document(
-                                        user_id,
-                                        document=(f"Sample_{safe_name}.pdf", output_pdf.getvalue()),
-                                        caption=f"📄 <b>Preview: {row[0]}</b>\n✅ 100% Quality Assurance & High Accuracy.\n\n👇 <i>If you are satisfied with the quality, you may proceed to purchase the complete document:</i>",
-                                        parse_mode='HTML',
-                                        reply_markup=markup
-                                    )
-                                    sample_sent = True
-                                    break
-                if sample_sent: break 
-        except Exception: pass
-            
-        if not sample_sent:
-            try: bot.delete_message(user_id, msg.message_id)
-            except: pass
-            markup = InlineKeyboardMarkup(row_width=1)
-            markup.add(
-                InlineKeyboardButton("💳 Proceed to Checkout", callback_data="choice_paid"),
-                InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main")
-            )
-            bot.send_message(user_id, "⚠️ We were unable to automatically generate a sample for this specific format. However, rest assured our material carries a 100% Quality Guarantee.", reply_markup=markup)
+        def run_sample():
+            sample_sent = False
+            try:
+                records_sheet1 = sheet1.get_all_values()
+                for course_input in courses:
+                    s_term = clean_string(course_input)
+                    for row in records_sheet1:
+                        if len(row) > 3:
+                            r_course = clean_string(row[0])
+                            r_medium = str(row[1]).strip().upper() if len(row) > 1 and str(row[1]).strip() != "" else "HINDI"
+                            
+                            if s_term in r_course and medium == r_medium:
+                                drive_url = str(row[3]).strip()
+                                direct_url = get_direct_drive_url(drive_url)
+                                if direct_url:
+                                    res = requests.get(direct_url, timeout=30)
+                                    if res.status_code == 200 and res.content.startswith(b'%PDF'):
+                                        pdf_file = io.BytesIO(res.content)
+                                        reader = PdfReader(pdf_file)
+                                        writer = PdfWriter()
+                                        num_pages = min(3, len(reader.pages))
+                                        for i in range(num_pages): writer.add_page(reader.pages[i])
+                                        output_pdf = io.BytesIO()
+                                        writer.write(output_pdf)
+                                        output_pdf.seek(0)
+                                        safe_name = row[0].replace(' ', '_')
+                                        
+                                        markup = InlineKeyboardMarkup(row_width=1)
+                                        markup.add(
+                                            InlineKeyboardButton("💳 Continue to Full Checkout", callback_data="choice_paid"),
+                                            InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main")
+                                        )
+                                        
+                                        try: bot.delete_message(user_id, msg.message_id)
+                                        except: pass
+                                        bot.send_document(
+                                            user_id,
+                                            document=(f"Sample_{safe_name}.pdf", output_pdf.getvalue()),
+                                            caption=f"📄 <b>Preview: {row[0]}</b>\n✅ 100% Quality Assurance & High Accuracy.\n\n👇 <i>If you are satisfied with the quality, you may proceed to purchase the complete document:</i>",
+                                            parse_mode='HTML',
+                                            reply_markup=markup
+                                        )
+                                        sample_sent = True
+                                        break
+                    if sample_sent: break 
+            except Exception: pass
+                
+            if not sample_sent:
+                try: bot.delete_message(user_id, msg.message_id)
+                except: pass
+                markup = InlineKeyboardMarkup(row_width=1)
+                markup.add(
+                    InlineKeyboardButton("💳 Proceed to Checkout", callback_data="choice_paid"),
+                    InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main")
+                )
+                bot.send_message(user_id, "⚠️ We were unable to automatically generate a sample for this specific format. However, rest assured our material carries a 100% Quality Guarantee.", reply_markup=markup)
+        
+        threading.Thread(target=run_sample, daemon=True).start()
             
     elif call.data == "choice_paid":
         total = order.get('total', 20)
+        pending_discount = order.get('pending_discount', 0)
+        final_payable = total - pending_discount
+        
         markup = InlineKeyboardMarkup(row_width=1)
         markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main"))
         
         payment_caption = (
             "💳 <b>Secure Payment Gateway</b>\n\n"
             "Please complete your payment to initiate the automatic delivery of your assignments.\n\n"
-            f"🔹 <b>Total Payable Amount:</b> <b>₹{total}</b>\n"
+            f"🔹 <b>Total Payable Amount:</b> <b>₹{final_payable}</b>\n"
             f"🔹 <b>Official UPI ID:</b> <code>{UPI_ID}</code>\n\n"
             "📌 <b>Next Steps:</b>\n"
             "Once the payment is successful, upload the clear <b>Payment Screenshot</b> directly in this chat.\n"
@@ -935,12 +953,18 @@ def continuous_check(message):
              send_join_message(message.chat.id)
         else:
             if message.content_type == 'photo':
-                if ADMIN_ID:
-                    if user_id in USER_STATE and 'qr_msg_id' in USER_STATE[user_id]:
-                        try:
-                            bot.delete_message(chat_id=user_id, message_id=USER_STATE[user_id]['qr_msg_id'])
-                            del USER_STATE[user_id]['qr_msg_id']
-                        except Exception: pass
+                if user_id in USER_STATE and 'qr_msg_id' in USER_STATE[user_id]:
+                    try:
+                        bot.delete_message(chat_id=user_id, message_id=USER_STATE[user_id]['qr_msg_id'])
+                        del USER_STATE[user_id]['qr_msg_id']
+                    except Exception: pass
+
+                    # 🔥 FIX 1: FINAL DEDUCTION UPON UPLOADING THE SCREENSHOT 🔥
+                    discount_to_apply = USER_STATE[user_id].get('pending_discount', 0)
+                    if discount_to_apply > 0:
+                        current_pts = get_user_points(str(user_id))
+                        update_user_points(str(user_id), current_pts - discount_to_apply)
+                        USER_STATE[user_id]['pending_discount'] = 0 # reset
 
                     if user_id in USER_STATE and 'valid_courses' in USER_STATE[user_id]:
                         c_str = ", ".join(USER_STATE[user_id]['valid_courses'])
@@ -976,7 +1000,9 @@ def continuous_check(message):
                     WAITING_FOR_ENROLLMENT.remove(user_id)
                     enr_number = message.text.strip()
                     bot.send_message(message.chat.id, f"🔍 <b>Processing Request...</b>\n\n<b>Enrollment Number:</b> <code>{enr_number}</code>\n\n<i>Fetching your latest grade card securely from IGNOU servers. Please wait a few moments...</i>", parse_mode='HTML')
-                    fetch_ignou_result(enr_number, message.chat.id)
+                    
+                    # 🔥 FIX 2: THREADED SELENIUM SO BOT DOES NOT HANG 🔥
+                    threading.Thread(target=fetch_ignou_result, args=(enr_number, message.chat.id), daemon=True).start()
                 
                 elif user_id in WAITING_FOR_COURSE:
                     WAITING_FOR_COURSE.remove(user_id)
