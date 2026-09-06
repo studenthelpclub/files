@@ -36,7 +36,6 @@ REQUIRED_CHATS = [
 ]
 
 YT_POST_DESTINATIONS = [
-    '@studenthelpclubofficial',
     '@studenthelpclub',
     -1004353231367
 ]
@@ -393,10 +392,14 @@ def get_main_menu():
 
 def get_navigation_buttons(back_callback):
     markup = InlineKeyboardMarkup(row_width=2)
-    markup.add(
-        InlineKeyboardButton("⬅️ Back", callback_data=back_callback),
-        InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main")
-    )
+    # 🔥 FIX: Prevent showing two buttons that do the exact same thing
+    if back_callback == "back_to_main":
+        markup.add(InlineKeyboardButton("🏠 Return to Main Menu", callback_data="back_to_main"))
+    else:
+        markup.add(
+            InlineKeyboardButton("⬅️ Back", callback_data=back_callback),
+            InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main")
+        )
     return markup
 
 @bot.callback_query_handler(func=lambda call: call.data == "back_to_main")
@@ -617,11 +620,11 @@ def handle_flow(call):
         if not user_id_match: return
             
         target_uid = int(user_id_match.group(1))
+        # 🔥 FIX 2: Text message cleanup for rejection
         reject_msg = (
             "⚠️ <b>Payment Verification Unsuccessful</b>\n\n"
             "Dear Student,\nWe could not verify the payment/order request you provided. It appears to be invalid or incomplete, and your PDF delivery has been paused.\n\n"
-            "Please contact our support desk immediately for assistance:\n"
-            f"👉 <b>{ADMIN_USERNAME_LINK}</b>"
+            "Please click the button below to contact our support desk immediately for assistance."
         )
         reject_markup = InlineKeyboardMarkup(row_width=1)
         reject_markup.add(
@@ -635,7 +638,7 @@ def handle_flow(call):
         bot.answer_callback_query(call.id, "Order Rejected and User Notified!")
         return
 
-    # 🔥 FIX 2: THREADED ADMIN VERIFY SO BOT NEVER HANGS 🔥
+    # 🔥 THREADED ADMIN VERIFY SO BOT NEVER HANGS 🔥
     if call.data == "admin_verify":
         if call.from_user.id != ADMIN_ID: return
         caption = call.message.caption
