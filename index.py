@@ -30,17 +30,19 @@ app = Flask(__name__)
 
 # --- CHANNELS & LINKS ---
 REQUIRED_CHATS = [
-    '@studenthelpclub',          # 1. Main Channel
-    '@studenthelpclubofficial',  # 2. Main Discussion Group
-    -1004353231367               # 3. IGNOU Solved Group (Numeric ID)
+    # '@studenthelpclub',          # (BANNED - Commented out)
+    # '@studenthelpclubofficial',  # (BANNED - Commented out)
+    -1004353231367               # IGNOU Solved Group (Numeric ID)
 ]
 
 YT_POST_DESTINATIONS = [
-    '@studenthelpclub',
+    # '@studenthelpclubofficial',  # (BANNED - Commented out)
+    # '@studenthelpclub',          # (BANNED - Commented out)
     -1004353231367
 ]
 
-AUTO_ALERT_CHANNEL = '@studenthelpclub'
+# Alert channel ko bhi bache huye group ID par shift kar diya
+AUTO_ALERT_CHANNEL = -1004353231367 
 
 FINAL_GROUP_LINK = "https://t.me/+YwUmMpjCgHFkZDdl"
 YOUTUBE_CHANNEL_LINK = "https://www.youtube.com/@vishalhelpclub?sub_confirmation=1"
@@ -419,15 +421,16 @@ def handle_back(call):
 def send_join_message(chat_id):
     markup = InlineKeyboardMarkup(row_width=1)
     markup.add(
-        InlineKeyboardButton("📢 Join Main Channel", url="https://t.me/studenthelpclub"),
-        InlineKeyboardButton("👥 Join Discussion Group", url="https://t.me/studenthelpclubofficial"),
+        # Banned channels commented out below:
+        # InlineKeyboardButton("📢 Join Main Channel", url="https://t.me/studenthelpclub"),
+        # InlineKeyboardButton("👥 Join Discussion Group", url="https://t.me/studenthelpclubofficial"),
         InlineKeyboardButton("📚 Join IGNOU Solved Group", url="https://t.me/+YwUmMpjCgHFkZDdl"),
         InlineKeyboardButton("✅ I Have Joined (Verify)", callback_data="verify_join")
     )
     join_msg = (
         "👋 <b>Welcome to Student Help Club Official Portal!</b>\n\n"
-        "To access IGNOU Solved Assignments, Academic Alerts, and Premium Services, please join our <b>all 3 official communities</b> below:\n\n"
-        "👇 <i>Click the buttons to join, then click 'I Have Joined' to verify your status.</i>"
+        "To access IGNOU Solved Assignments, Academic Alerts, and Premium Services, please join our <b>official community</b> below:\n\n"
+        "👇 <i>Click the button to join, then click 'I Have Joined' to verify your status.</i>"
     )
     bot.send_message(chat_id, join_msg, reply_markup=markup, parse_mode='HTML')
 
@@ -509,15 +512,15 @@ def verify_callback(call):
 
         try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
         except Exception: pass 
-        bot.send_message(call.message.chat.id, "✅ <b>Access Verified!</b>\n\nThank you for joining all communities. 🎉\n👇 <i>Please choose a service from the dashboard:</i>", parse_mode='HTML', reply_markup=get_main_menu())
+        bot.send_message(call.message.chat.id, "✅ <b>Access Verified!</b>\n\nThank you for joining our community. 🎉\n👇 <i>Please choose a service from the dashboard:</i>", parse_mode='HTML', reply_markup=get_main_menu())
     else:
-        bot.answer_callback_query(call.id, "❌ Kripya pehle teeno channels/groups join karein!", show_alert=True)
+        bot.answer_callback_query(call.id, "❌ Kripya pehle group join karein!", show_alert=True)
 
 @bot.callback_query_handler(func=lambda call: call.data == "start_check_result")
 def prompt_enrollment(call):
     user_id = call.from_user.id
     if not check_membership(user_id):
-        bot.answer_callback_query(call.id, "❌ Access Denied! Please join all channels first.", show_alert=True)
+        bot.answer_callback_query(call.id, "❌ Access Denied! Please join the official group first.", show_alert=True)
         return
     WAITING_FOR_ENROLLMENT.add(user_id)
     try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
@@ -528,7 +531,7 @@ def prompt_enrollment(call):
 def prompt_course_code(call):
     user_id = call.from_user.id
     if not check_membership(user_id):
-        bot.answer_callback_query(call.id, "❌ Access Denied! Please join all channels first.", show_alert=True)
+        bot.answer_callback_query(call.id, "❌ Access Denied! Please join the official group first.", show_alert=True)
         return
     WAITING_FOR_COURSE.add(user_id)
     try: bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
@@ -583,7 +586,7 @@ def fetch_ignou_result(enr_no, chat_id):
         caption_text = (
             f"✅ <b>Result Generated for Enrollment:</b> <code>{enr_no}</code>\n\n"
             f"🚀 <i>Service Powered by:</i> <b>Student Help Club</b>\n"
-            f"📢 <b>Official Channel:</b> @studenthelpclub\n"
+            # (Channel link removed)
             f"🌐 <b>Website:</b> studenthelpclub.in"
         )
         with open(file_name, 'rb') as photo:
