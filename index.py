@@ -36,8 +36,7 @@ REQUIRED_CHATS = [
 ]
 
 YT_POST_DESTINATIONS = [
-    # '@studenthelpclubofficial',  # (BANNED - Commented out)
-    # '@studenthelpclub',          # (BANNED - Commented out)
+    '@studenthelpclub',
     -1004353231367
 ]
 
@@ -394,7 +393,6 @@ def get_main_menu():
 
 def get_navigation_buttons(back_callback):
     markup = InlineKeyboardMarkup(row_width=2)
-    # 🔥 FIX: Prevent showing two buttons that do the exact same thing
     if back_callback == "back_to_main":
         markup.add(InlineKeyboardButton("🏠 Return to Main Menu", callback_data="back_to_main"))
     else:
@@ -971,14 +969,17 @@ def continuous_check(message):
     chat_type = message.chat.type
     
     if chat_type in ['group', 'supergroup']:
-        if is_admin(message.chat.id, user_id): return
+        # Agar admin hai, toh kuch delete mat karo
+        if is_admin(message.chat.id, user_id): 
+            return
+        
+        # Agar user ne channel join nahi kiya hai, toh uski message delete karo (Force Join)
         if not check_membership(user_id):
             try: bot.delete_message(message.chat.id, message.message_id)
             except: pass
-            return 
-        if message.content_type == 'document': return 
-        try: bot.delete_message(message.chat.id, message.message_id)
-        except: pass
+            
+        # Baaki saari normal chatting ko allow karo
+        return 
             
     elif chat_type == 'private':
         if not check_membership(user_id):
